@@ -1,0 +1,9 @@
+[package]
+name = "copyrighter"
+version = "0.1.0"
+authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
+
+[dependencies]
+git-historian = { git = "https://github.com/mrkline/git-historian.git" }
+getopts = "0.2"
+time = "0.1"
