@@ -1,5 +1,7 @@
 extern crate getopts;
 extern crate git_historian;
+extern crate threadpool;
+extern crate num_cpus;
 
 // A demo app that gets the --oneline of every commit for a given file.
 // Since this does so once per diff per commit, it is hilariously inefficient,
@@ -14,7 +16,9 @@ use std::sync::Arc;
 use getopts::Options;
 use git_historian::PathSet;
 
+mod common;
 mod history;
+mod existing;
 
 fn print_usage(opts: &Options, code: i32) {
     println!("{}", opts.usage("Usage: gsr [options] <file>"));
@@ -43,6 +47,9 @@ fn main() {
     // so let's start refcounting it.
     let paths = Arc::new(paths);
 
-    let years_handle = history::get_year_map(paths);
-    println!("{:?}", years_handle.join().unwrap());
+    let git_years_handle = history::get_year_map(paths.clone());
+    let header_years_handle = existing::get_year_map(paths);
+
+    println!("{:?}", header_years_handle.join().unwrap());
+    println!("{:?}", git_years_handle.join().unwrap());
 }

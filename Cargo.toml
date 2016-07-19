@@ -7,3 +7,5 @@ authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
 git-historian = { git = "https://github.com/mrkline/git-historian.git" }
 getopts = "0.2"
 time = "0.1"
+threadpool = "1.3"
+num_cpus = "0.2.13"
