@@ -26,10 +26,7 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("h", "help", "Print this help menu");
-    let mut matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m }
-        Err(f) => { panic!(f) }
-    };
+    let matches = opts.parse(&args[1..]).unwrap();
 
     if matches.opt_present("h") {
         print_usage(&opts, 0);
@@ -38,7 +35,7 @@ fn main() {
 
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::new();
-    for path in matches.free.drain(..) {
+    for path in matches.free {
         paths.insert(path);
     }
 
@@ -46,6 +43,6 @@ fn main() {
     // so let's start refcounting it.
     let paths = Arc::new(paths);
 
-    // TODO: Useme
-    history::get_year_map(paths);
+    let years_handle = history::get_year_map(paths);
+    println!("{:?}", years_handle.join().unwrap());
 }

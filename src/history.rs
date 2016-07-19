@@ -10,27 +10,41 @@ use git_historian::PathSet;
 
 pub type Year = u16;
 
+pub type YearMap = HashMap<String, Vec<Year>>;
+
 pub fn get_year_map(paths: Arc<PathSet>)
-    -> thread::JoinHandle<HashMap<String, Vec<Year>>>
+    -> thread::JoinHandle<YearMap>
 {
-    thread::spawn(move || get_year_map_thread(paths))
+    thread::spawn(|| get_year_map_thread(paths))
 }
 
-pub fn get_year_map_thread(paths: Arc<PathSet>) -> HashMap<String, Vec<Year>> {
+pub fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     let (tx, rx) = mpsc::sync_channel(0);
 
     thread::spawn(|| get_history(tx));
 
     let history = gather_history(&paths, &get_year, rx);
 
-    let mut ret = HashMap::new();
+    let mut ret = YearMap::new();
 
-    /*
     for (key, val) in history {
-        // TODO
+        let mut years : Vec<Year> = Vec::new();
+        walk_history(&val, &mut years);
+
+        years.sort();
+        years.dedup();
+        ret.insert(key, years);
     }
-    */
     ret
+}
+
+fn walk_history(node: &Link<HistoryNode<Year>>, append_to: &mut Vec<Year>) {
+    let nb = node.borrow();
+    append_to.push(nb.data);
+
+    if let Some(ref prev) = nb.previous {
+        walk_history(prev, append_to)
+    }
 }
 
 fn get_year(c: &ParsedCommit) -> Year {
