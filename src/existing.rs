@@ -11,8 +11,9 @@ use std::thread;
 use git_historian::PathSet;
 use num_cpus;
 use threadpool::ThreadPool;
+use regex::Regex;
 
-use common::{YearMap};
+use common::{Year, YearMap};
 
 struct SharedState {
     // We'll keep track of how many paths we have left in order to know
@@ -63,6 +64,7 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     while guard.paths_remaining > 0 {
         guard = shared_state.cv.wait(guard).unwrap();
     }
+    println!("DONE");
     guard.result.take().unwrap()
 }
 
@@ -71,12 +73,39 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
     let mut br = BufReader::new(fh);
     let mut first_line = String::new();
     br.read_line(&mut first_line).unwrap();
-    // TODO: Scan the first line
 
+    lazy_static!{
+        static ref COPYRIGHT : Regex = Regex::new(
+            r"^\s*/[/*].*[Cc]opyright").unwrap();
+        static ref YEAR_OR_RANGE : Regex = Regex::new(
+            r"((\d{4})\s*[-–—]\s*(\d{4}))|(\d{4})").unwrap();
+    }
+
+    if !COPYRIGHT.is_match(&first_line) {
+        let mut guard = ss.mutex.lock().unwrap();
+        guard.paths_remaining -= 1;
+        return;
+    }
+
+    let mut years : Vec<Year> = Vec::new();
+
+    for cap in YEAR_OR_RANGE.captures_iter(&first_line) {
+        match cap.at(1) {
+            None => { years.push(cap.at(4).unwrap().parse().unwrap()); },
+            Some(_) => {
+                let start : Year = cap.at(2).unwrap().parse().unwrap();
+                let end : Year = cap.at(3).unwrap().parse().unwrap();
+
+                for i in start .. end+1 {
+                    years.push(i);
+                }
+            },
+        };
+    }
 
     // Take the lock on the shared state
     let mut guard = ss.mutex.lock().unwrap();
-    guard.result.as_mut().unwrap().insert(path, vec![2001, 2048]);
+    guard.result.as_mut().unwrap().insert(path, years);
 
     guard.paths_remaining -= 1;
     if guard.paths_remaining == 0 { ss.cv.notify_all(); }

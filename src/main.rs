@@ -1,7 +1,11 @@
 extern crate getopts;
 extern crate git_historian;
-extern crate threadpool;
 extern crate num_cpus;
+extern crate threadpool;
+extern crate regex;
+
+#[macro_use]
+extern crate lazy_static;
 
 // A demo app that gets the --oneline of every commit for a given file.
 // Since this does so once per diff per commit, it is hilariously inefficient,
