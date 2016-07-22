@@ -18,7 +18,7 @@ pub fn get_year_map(paths: Arc<PathSet>) -> thread::JoinHandle<YearMap>
 fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     let (tx, rx) = mpsc::sync_channel(0);
 
-    thread::spawn(|| get_history(tx));
+    let handle = thread::spawn(|| get_history(tx));
 
     let history = gather_history(&paths, &get_year, rx);
 
@@ -32,6 +32,7 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
         years.dedup();
         ret.insert(key, years);
     }
+    handle.join().unwrap();
     ret
 }
 
