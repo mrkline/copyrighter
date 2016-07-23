@@ -64,7 +64,6 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     while guard.paths_remaining > 0 {
         guard = shared_state.cv.wait(guard).unwrap();
     }
-    println!("DONE");
     guard.result.take().unwrap()
 }
 
@@ -84,6 +83,7 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
     if !COPYRIGHT.is_match(&first_line) {
         let mut guard = ss.mutex.lock().unwrap();
         guard.paths_remaining -= 1;
+        if guard.paths_remaining == 0 { ss.cv.notify_all(); }
         return;
     }
 
