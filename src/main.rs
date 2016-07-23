@@ -7,10 +7,9 @@ extern crate regex;
 #[macro_use]
 extern crate lazy_static;
 
-// A demo app that gets the --oneline of every commit for a given file.
-// Since this does so once per diff per commit, it is hilariously inefficient,
-// but very easy to validate by comparing a given file's history to
-// `git log --follow --oneline <file>`.
+mod common;
+mod history;
+mod existing;
 
 use std::env;
 use std::process::exit;
@@ -20,9 +19,7 @@ use std::sync::Arc;
 use getopts::Options;
 use git_historian::PathSet;
 
-mod common;
-mod history;
-mod existing;
+use common::YearMap;
 
 fn print_usage(opts: &Options, code: i32) {
     println!("{}", opts.usage("Usage: gsr [options] <file>"));
@@ -54,6 +51,39 @@ fn main() {
     let git_years_handle = history::get_year_map(paths.clone());
     let header_years_handle = existing::get_year_map(paths);
 
-    println!("{:?}", header_years_handle.join().unwrap());
-    println!("{:?}", git_years_handle.join().unwrap());
+    let header_years : YearMap =  header_years_handle.join().unwrap();
+    let git_years : YearMap =  git_years_handle.join().unwrap();
+
+    let all_years = combine_year_maps(header_years, git_years);
+
+    println!("{:?}", all_years);
+}
+
+fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
+    // Merge the smaller map into the larger to try to avoid one realloc-ing.
+    let mut larger;
+    let mut smaller;
+    if git_years.len() > header_years.len() {
+        larger = git_years;
+        smaller = header_years;
+    }
+    else {
+        larger = header_years;
+        smaller = git_years;
+    }
+
+    // Transfer all of smaller's entries into larger.
+    for (k, mut v) in smaller.drain() {
+        let e = larger.entry(k).or_insert(Vec::new());
+        e.append(&mut v);
+        e.sort();
+        e.dedup();
+        // Once sorted and deduped, we won't be modifying this anymore,
+        // so free up any memory we aren't using.
+        e.shrink_to_fit();
+    }
+    // Ditto for the hashmap itself
+    larger.shrink_to_fit();
+
+    larger
 }
