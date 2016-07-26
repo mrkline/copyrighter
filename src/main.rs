@@ -1,5 +1,6 @@
 extern crate getopts;
 extern crate git_historian;
+extern crate libc;
 extern crate num_cpus;
 extern crate threadpool;
 extern crate regex;
@@ -10,6 +11,7 @@ extern crate lazy_static;
 mod common;
 mod history;
 mod existing;
+mod update;
 
 use std::env;
 use std::process::exit;
@@ -56,7 +58,7 @@ fn main() {
 
     let all_years = combine_year_maps(header_years, git_years);
 
-    println!("{:?}", all_years);
+    update::update_headers(all_years);
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
@@ -84,6 +86,8 @@ fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     }
     // Ditto for the hashmap itself
     larger.shrink_to_fit();
+
+    assert!(smaller.is_empty());
 
     larger
 }
