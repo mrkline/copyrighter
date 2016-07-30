@@ -1,7 +1,10 @@
+//! Use git-historian to find the years in which our files were changed
+//! according to Git history. See that library for details of how it works.
+
 extern crate time;
 
 use std::thread;
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 
 use git_historian::history::{gather_history, Link, HistoryNode};
 use git_historian::parsing::{get_history, ParsedCommit};
@@ -10,12 +13,12 @@ use git_historian::PathSet;
 use common::{Year, YearMap};
 
 #[inline]
-pub fn get_year_map(paths: Arc<PathSet>) -> thread::JoinHandle<YearMap>
+pub fn get_year_map(paths: PathSet) -> thread::JoinHandle<YearMap>
 {
     thread::spawn(|| get_year_map_thread(paths))
 }
 
-fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
+fn get_year_map_thread(paths: PathSet) -> YearMap {
     let (tx, rx) = mpsc::sync_channel(0);
 
     let handle = thread::spawn(|| get_history(tx));
@@ -27,9 +30,8 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     for (key, val) in history {
         let mut years : Vec<Year> = Vec::new();
         walk_history(&val, &mut years);
-
-        years.sort();
-        years.dedup();
+        // We're not going to sort or dedup here since we will later.
+        // (See combine_year_maps())
         ret.insert(key, years);
     }
     handle.join().unwrap();

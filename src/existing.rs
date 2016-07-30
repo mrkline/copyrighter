@@ -1,6 +1,6 @@
-///! Examines existing (if any) copyright headers and parses the listed years.
-///! This is useful for years that may have taken place before adding the file
-///! to Git.
+//! Examines existing (if any) copyright headers and parses the listed years.
+//! This is useful for years that may have taken place before adding the file
+//! to Git.
 
 use std::fs::File;
 use std::io::BufReader;
@@ -32,11 +32,11 @@ struct SyncState {
 }
 
 #[inline]
-pub fn get_year_map(paths: Arc<PathSet>) -> thread::JoinHandle<YearMap> {
+pub fn get_year_map(paths: PathSet) -> thread::JoinHandle<YearMap> {
     thread::spawn(|| get_year_map_thread(paths))
 }
 
-fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
+fn get_year_map_thread(paths: PathSet) -> YearMap {
     // Strap together an ARC for all our shared state
     let shared_state = Arc::new(
         SyncState{ mutex: Mutex::new(SharedState{paths_remaining: paths.len(),
@@ -48,15 +48,9 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
     // scheduler figure that out.
     let thread_pool = ThreadPool::new(num_cpus::get());
 
-    for path in paths.iter() {
-        // Cloning the path is a bit pessimal, but a copy is useful to have
-        // if we end up inserting a result, and convincing the borrow checker
-        // that the path outlives the closure is difficult since
-        // ThreadPool::execute() wants `static lifetime.
-        let p = path.clone();
-
+    for path in paths.into_iter() { // Consume our paths
         let ss = shared_state.clone(); // Bump the refcount
-        thread_pool.execute(|| scan_file(p, ss));
+        thread_pool.execute(|| scan_file(path, ss));
     }
 
     // Sleep until we've processed all paths.
@@ -68,10 +62,13 @@ fn get_year_map_thread(paths: Arc<PathSet>) -> YearMap {
 }
 
 fn scan_file(path: String, ss : Arc<SyncState>) {
-    let fh = File::open(&path).unwrap();
-    let mut br = BufReader::new(fh);
+    // Open the file and read in the first line.
     let mut first_line = String::new();
-    br.read_line(&mut first_line).unwrap();
+    {
+        let fh = File::open(&path).unwrap();
+        let mut br = BufReader::new(fh);
+        br.read_line(&mut first_line).unwrap();
+    }
 
     lazy_static!{
         static ref COPYRIGHT : Regex = Regex::new(
@@ -80,6 +77,7 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
             r"((\d{4})\s*[-–—]\s*(\d{4}))|(\d{4})").unwrap();
     }
 
+    // The first line isn't a copyright line. Move on to the next file.
     if !COPYRIGHT.is_match(&first_line) {
         let mut guard = ss.mutex.lock().unwrap();
         guard.paths_remaining -= 1;
@@ -91,7 +89,9 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
 
     for cap in YEAR_OR_RANGE.captures_iter(&first_line) {
         match cap.at(1) {
+            // A single year:
             None => { years.push(cap.at(4).unwrap().parse().unwrap()); },
+            // A range of years (<yyyy>-<yyyy>):
             Some(_) => {
                 let start : Year = cap.at(2).unwrap().parse().unwrap();
                 let end : Year = cap.at(3).unwrap().parse().unwrap();
@@ -105,6 +105,7 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
 
     // Take the lock on the shared state
     let mut guard = ss.mutex.lock().unwrap();
+    // Insert our newfound years.
     guard.result.as_mut().unwrap().insert(path, years);
 
     guard.paths_remaining -= 1;

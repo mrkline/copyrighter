@@ -1,4 +1,4 @@
-///! Updates copyright headers based on the information gathered.
+//! Updates copyright headers based on the information gathered.
 
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -58,6 +58,7 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
         let mut br = io::BufReader::new(&fh);
         br.read_line(&mut first_line_buff).unwrap();
     }
+
     // We don't want to mess with the newline (or trailing space).
     let old_first_line = first_line_buff.trim_right();
 
@@ -69,13 +70,14 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     let mut new_first_line;
     let replacing_existing_notice;
 
-    // TODO: Create an actual notice from the vec of years.
     match COPYRIGHT_OPENER.captures(&old_first_line) {
+        // If there's an existing copyright notice, update that.
         Some(capture) => {
             // Preserve the existing // or /* and following whitespace.
             new_first_line = capture.at(1).unwrap().to_string();
             replacing_existing_notice = true;
         }
+        // Otherwise we'll add one.
         None => {
             new_first_line = "//".to_string();
             replacing_existing_notice = false;
@@ -99,7 +101,7 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
         slide_file_contents(&fh, old_first_line.len(), slide_amount);
     }
 
-    // Rewind to the start and write our line
+    // Rewind to the start and write our notice line.
     fh.seek(io::SeekFrom::Start(0)).unwrap();
     fh.write_all(new_first_line.as_bytes()).unwrap();
 

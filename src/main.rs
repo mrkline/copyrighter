@@ -18,7 +18,6 @@ use std::env;
 use std::io::Write;
 use std::process::exit;
 use std::str;
-use std::sync::Arc;
 
 use getopts::Options;
 use git_historian::PathSet;
@@ -53,30 +52,30 @@ fn main() {
     let organization = matches.opt_str("o").unwrap();
 
     // Assume free arguments are paths we want to examine
-    let mut paths = PathSet::new();
+    let mut paths = PathSet::with_capacity(matches.free.len());
     for path in matches.free {
         paths.insert(path);
     }
 
-    // We're going to start passing this set around threads,
-    // so let's start refcounting it.
-    let paths = Arc::new(paths);
-
+    // Kick off two threads: one gets when files were modified via Git history,
+    // and the other searches the files themselves for existing copyright info.
     let git_years_handle = history::get_year_map(paths.clone());
     let header_years_handle = existing::get_year_map(paths);
 
+    // Let them finish.
     let header_years : YearMap =  header_years_handle.join().unwrap();
     let git_years : YearMap =  git_years_handle.join().unwrap();
 
     let all_years = combine_year_maps(header_years, git_years);
 
+    // Take all the info we've learned, and update (or create) copyright headers.
     update::update_headers(all_years, organization);
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
-    // Merge the smaller map into the larger to try to avoid one realloc-ing.
+    // Merge the smaller map into the larger to try to avoid a realloc
     let mut larger;
-    let mut smaller;
+    let smaller;
     if git_years.len() > header_years.len() {
         larger = git_years;
         smaller = header_years;
@@ -87,19 +86,22 @@ fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     }
 
     // Transfer all of smaller's entries into larger.
-    for (k, mut v) in smaller.drain() {
+    for (k, mut v) in smaller.into_iter() {
         let e = larger.entry(k).or_insert(Vec::new());
         e.append(&mut v);
-        e.sort();
-        e.dedup();
+    }
+
+    // Sort and dedup our master map.
+    for (_, v) in larger.iter_mut() {
+        v.sort();
+        v.dedup();
         // Once sorted and deduped, we won't be modifying this anymore,
         // so free up any memory we aren't using.
-        e.shrink_to_fit();
+        v.shrink_to_fit();
     }
+
     // Ditto for the hashmap itself
     larger.shrink_to_fit();
-
-    assert!(smaller.is_empty());
 
     larger
 }
