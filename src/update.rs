@@ -7,6 +7,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::os::unix::prelude::*;
 use std::ptr;
 
+use itertools::Itertools;
 use libc;
 use num_cpus;
 use regex::Regex;
@@ -61,22 +62,25 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
             r"^(\s*/[/*]).*[Cc]opyright").unwrap();
     }
 
-    let new_first_line;
+    let mut new_first_line;
     let replacing_existing_notice;
 
     // TODO: Create an actual notice from the vec of years.
     match COPYRIGHT_OPENER.captures(&old_first_line) {
         Some(capture) => {
             // Preserve the existing // or /* and following whitespace.
-            new_first_line = capture.at(1).unwrap().to_string() + &" Copyright Blah";
+            new_first_line = capture.at(1).unwrap().to_string();
             replacing_existing_notice = true;
         }
         None => {
-            new_first_line = "// Copyright Blah\n".to_string();
+            new_first_line = "//".to_string();
             replacing_existing_notice = false;
         }
     };
 
+    new_first_line.push_str(" Copyright © ");
+    new_first_line.push_str(&years.into_iter().map(|y| y.to_string()).join(","));
+    new_first_line.push('\n');
 
     if !replacing_existing_notice {
         // Slide the existing contents forward, making way for the new notice.

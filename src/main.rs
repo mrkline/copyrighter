@@ -1,9 +1,10 @@
 extern crate getopts;
 extern crate git_historian;
+extern crate itertools;
 extern crate libc;
 extern crate num_cpus;
-extern crate threadpool;
 extern crate regex;
+extern crate threadpool;
 
 #[macro_use]
 extern crate lazy_static;
