@@ -16,17 +16,21 @@ use threadpool::ThreadPool;
 use common::{Year, YearMap};
 
 struct SyncState {
+    // Hold onto the string given to us via command line args
+    organization: String,
+
     // We'll keep track of how many paths we have left in order to know
     // when to stop waiting for results.
     paths_remaining : Mutex<usize>,
     // We'll notify the CV when we have no remaining paths to process.
-    cv : Condvar
+    cv : Condvar,
 }
 
-pub fn update_headers(map: YearMap) {
+pub fn update_headers(map: YearMap, organization: String) {
     // Strap together an ARC for all our shared state
     let shared_state = Arc::new(
-        SyncState{ paths_remaining: Mutex::new(map.len()),
+        SyncState{ organization: organization,
+                   paths_remaining: Mutex::new(map.len()),
                    cv: Condvar::new() });
 
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
@@ -80,6 +84,8 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
 
     new_first_line.push_str(" Copyright © ");
     new_first_line.push_str(&years.into_iter().map(|y| y.to_string()).join(","));
+    new_first_line.push(' ');
+    new_first_line.push_str(&ss.organization);
     new_first_line.push('\n');
 
     if !replacing_existing_notice {

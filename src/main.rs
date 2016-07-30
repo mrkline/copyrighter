@@ -15,6 +15,7 @@ mod existing;
 mod update;
 
 use std::env;
+use std::io::Write;
 use std::process::exit;
 use std::str;
 use std::sync::Arc;
@@ -24,8 +25,8 @@ use git_historian::PathSet;
 
 use common::YearMap;
 
-fn print_usage(opts: &Options, code: i32) {
-    println!("{}", opts.usage("Usage: gsr [options] <file>"));
+fn print_usage(opts: &Options, code: i32) -> ! {
+    println!("{}", opts.usage("Usage: copyrighter [options] <file>"));
     exit(code);
 }
 
@@ -34,12 +35,22 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("h", "help", "Print this help menu");
-    let matches = opts.parse(&args[1..]).unwrap();
+    opts.reqopt("o", "organization",
+                "The organization claiming the copyright",
+                "<org>");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m },
+        Err(e) => {
+            writeln!(&mut std::io::stderr(), "{}", e.to_string()).unwrap();
+            print_usage(&opts, 1);
+        }
+    };
 
     if matches.opt_present("h") {
         print_usage(&opts, 0);
     }
 
+    let organization = matches.opt_str("o").unwrap();
 
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::new();
@@ -59,7 +70,7 @@ fn main() {
 
     let all_years = combine_year_maps(header_years, git_years);
 
-    update::update_headers(all_years);
+    update::update_headers(all_years, organization);
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
