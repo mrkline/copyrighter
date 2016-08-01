@@ -19,6 +19,7 @@ pub fn get_year_map(paths: PathSet) -> thread::JoinHandle<YearMap>
 }
 
 fn get_year_map_thread(paths: PathSet) -> YearMap {
+    // One thread reads output from git-log; this one consumes and parses it.
     let (tx, rx) = mpsc::sync_channel(0);
 
     let handle = thread::spawn(|| get_history(tx));
@@ -38,6 +39,8 @@ fn get_year_map_thread(paths: PathSet) -> YearMap {
     ret
 }
 
+// The history we're given is a "tree" of nodes, containing per-commit info
+// for the files we care about. Walk the nodes of the tree and store the years.
 fn walk_history(node: &Link<HistoryNode<Year>>, append_to: &mut Vec<Year>) {
     let nb = node.borrow();
     append_to.push(nb.data);
@@ -47,6 +50,7 @@ fn walk_history(node: &Link<HistoryNode<Year>>, append_to: &mut Vec<Year>) {
     }
 }
 
+// For the copyright, we only care to extract the year from each commit.
 fn get_year(c: &ParsedCommit) -> Year {
     (time::at(c.when).tm_year + 1900) as Year
 }

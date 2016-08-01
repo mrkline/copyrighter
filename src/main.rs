@@ -24,6 +24,8 @@ use git_historian::PathSet;
 
 use common::YearMap;
 
+// Print our usage string and exit the program with the given code.
+// (This never returns.)
 fn print_usage(opts: &Options, code: i32) -> ! {
     println!("{}", opts.usage("Usage: copyrighter [options] <file>"));
     exit(code);
@@ -32,6 +34,7 @@ fn print_usage(opts: &Options, code: i32) -> ! {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    // Args parsing via getopts
     let mut opts = Options::new();
     opts.optflag("h", "help", "Print this help menu");
     opts.reqopt("o", "organization",
@@ -40,16 +43,19 @@ fn main() {
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m },
         Err(e) => {
+            // If the user messes up the args, print the error and usage string.
             writeln!(&mut std::io::stderr(), "{}", e.to_string()).unwrap();
             print_usage(&opts, 1);
         }
     };
 
-    if matches.opt_present("h") {
+    if matches.opt_present("h") { // Print help as-desired.
         print_usage(&opts, 0);
     }
 
-    let organization = matches.opt_str("o").unwrap();
+    // TODO: Assert that we're in the top directory of a Git repo.
+
+    let organization = matches.opt_str("o").unwrap(); // -o is mandatory.
 
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::with_capacity(matches.free.len());

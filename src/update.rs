@@ -52,7 +52,10 @@ pub fn update_headers(map: YearMap, organization: String) {
 
 /// Update the existing copyright notice of a file, or tack on a new one.
 fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
+    // Open the file with read and write perms.
     let mut fh = OpenOptions::new().read(true).write(true).open(&path).unwrap();
+
+    // Read in the existing first line (so we can look for an existing notice).
     let mut first_line_buff = String::new();
     {
         let mut br = io::BufReader::new(&fh);
@@ -67,8 +70,8 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
             r"^(\s*/[/*]).*[Cc]opyright").unwrap();
     }
 
-    let mut new_first_line;
-    let replacing_existing_notice;
+    let mut new_first_line : String;
+    let replacing_existing_notice : bool;
 
     match COPYRIGHT_OPENER.captures(&old_first_line) {
         // If there's an existing copyright notice, update that.
@@ -85,6 +88,8 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     };
 
     new_first_line.push_str(" Copyright © ");
+    // Insert a comma-separated list of years modified.
+    // TODO: Also allow dashed ranges.
     new_first_line.push_str(&years.into_iter().map(|y| y.to_string()).join(","));
     new_first_line.push(' ');
     new_first_line.push_str(&ss.organization);
@@ -176,7 +181,7 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) {
     }
 }
 
-// A whole crate exists for cross-platform mmapping
+// A whole crate exists for cross-platform memory mapping
 // (https://github.com/danburkert/memmap-rs),
 // but for now I only care about the Posix case with no offset,
 // which is easy to do. No need to pull in another dependency.
