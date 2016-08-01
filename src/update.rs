@@ -95,9 +95,10 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     new_first_line.push_str(&years.into_iter().map(|y| y.to_string()).join(","));
     new_first_line.push(' ');
     new_first_line.push_str(&ss.organization);
-    new_first_line.push('\n');
 
     if !replacing_existing_notice {
+        // We need a newline if we're creating our own notice.
+        new_first_line.push('\n');
         // Slide the existing contents forward, making way for the new notice.
         slide_file_contents(&fh, 0, new_first_line.len() as isize);
     }
