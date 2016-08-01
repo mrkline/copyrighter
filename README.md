@@ -6,8 +6,8 @@ ones for files.
 To update all .cpp and .h files in a project,
 ```
 $ cd my_project
-$ find -print0 -type f \( -name '*.cpp' -or -name '*.h'\) | \
-    xargs -0 copyrighter --organization "Fluke Networks. All rights reserved."
+$ find -type f \( -name '*.cpp' -or -name '*.h'\) -print0 | \
+    xargs -0 copyrighter --organization "Fluke Corporation. All rights reserved."
 ```
 
 I'll probably make a script (or another program) that automates this process.
