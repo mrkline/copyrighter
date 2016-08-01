@@ -37,11 +37,11 @@ fn main() {
     // Args parsing via getopts
     let mut opts = Options::new();
     opts.optflag("h", "help", "Print this help menu");
-    opts.reqopt("o", "organization",
-                "The organization claiming the copyright",
+    opts.optopt("o", "organization",
+                "The organization claiming the copyright, and any following text",
                 "<org>");
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m },
+        Ok(m) => m,
         Err(e) => {
             // If the user messes up the args, print the error and usage string.
             writeln!(&mut std::io::stderr(), "{}", e.to_string()).unwrap();
@@ -54,8 +54,14 @@ fn main() {
     }
 
     // TODO: Assert that we're in the top directory of a Git repo.
-
-    let organization = matches.opt_str("o").unwrap(); // -o is mandatory.
+    let organization = match matches.opt_str("o") {
+        Some(o) => o,
+        None => { // -o is mandatory.
+            writeln!(&mut std::io::stderr(),
+                     "Required option 'organization' is missing.").unwrap();
+            print_usage(&opts, 1);
+        }
+    };
 
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::with_capacity(matches.free.len());
