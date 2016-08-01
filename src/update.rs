@@ -175,7 +175,7 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) {
         }
 
         // Shift the contents over.
-        let mut mapping = Mapping::open(fd, file_length).unwrap();
+        let mut mapping = Mapping::open(fd, new_length as usize).unwrap();
         unsafe { // memmove, a la Rust
             ptr::copy(mapping.ptr().offset(offset as isize),
                       mapping.mut_ptr().offset(offset as isize + amount),
