@@ -1,6 +1,17 @@
 Copyrighter uses Git history and existing copyright notices to generate updated
 ones for files.
 
+## Examplse usage
+
+To update all .cpp and .h files in a project,
+```
+$ cd my_project
+$ find -print0 -type f \( -name '*.cpp' -or -name '*.h'\) | \
+    xargs -0 copyrighter --organization "Fluke Networks. All rights reserved."
+```
+
+I'll probably make a script (or another program) that automates this process.
+
 ## Why?
 
 As of our last discussion with them, Legal demands that all code files contain
