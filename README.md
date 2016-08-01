@@ -1,0 +1,18 @@
+Copyrighter uses Git history and existing copyright notices to generate updated
+ones for files.
+
+## Why?
+
+As of our last discussion with them, Legal demands that all code files contain
+a copyright notice, complete with each year the file was modified.
+This work is far too menial for humans.
+
+## How?
+
+See [git-historian](https://github.com/mrkline/git-historian) for the Git history
+side of things. The rest is fairly straightforward file manipulation.
+
+## Why Rust?
+
+[Because](https://www.youtube.com/watch?v=_-fweBvtifA) [it's awesome](http://www.smbc-comics.com/?id=2088)
+(and I wanted to try it out for a Real™ project).
