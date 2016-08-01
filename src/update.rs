@@ -53,13 +53,15 @@ pub fn update_headers(map: YearMap, organization: String) {
 /// Update the existing copyright notice of a file, or tack on a new one.
 fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     // Open the file with read and write perms.
-    let mut fh = OpenOptions::new().read(true).write(true).open(&path).unwrap();
+    let mut fh = OpenOptions::new().read(true).write(true).open(&path)
+        .expect(&("Error opening ".to_string() + &path));
 
     // Read in the existing first line (so we can look for an existing notice).
     let mut first_line_buff = String::new();
     {
         let mut br = io::BufReader::new(&fh);
-        br.read_line(&mut first_line_buff).unwrap();
+        br.read_line(&mut first_line_buff)
+          .expect(&("Error reading ".to_string() + &path));
     }
 
     // We don't want to mess with the newline (or trailing space).
@@ -107,8 +109,11 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     }
 
     // Rewind to the start and write our notice line.
-    fh.seek(io::SeekFrom::Start(0)).unwrap();
-    fh.write_all(new_first_line.as_bytes()).unwrap();
+    fh.seek(io::SeekFrom::Start(0))
+      .expect(&("Error seeking in ".to_string() + &path));
+
+    fh.write_all(new_first_line.as_bytes())
+      .expect(&("Error writing to ".to_string() + &path));
 
     // Decrement the number of files to go.
     let mut remaining = ss.paths_remaining.lock().unwrap();

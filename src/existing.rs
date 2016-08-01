@@ -65,9 +65,9 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
     // Open the file and read in the first line.
     let mut first_line = String::new();
     {
-        let fh = File::open(&path).unwrap();
+        let fh = File::open(&path).expect(&("Error opening ".to_string() + &path));
         let mut br = BufReader::new(fh);
-        br.read_line(&mut first_line).unwrap();
+        br.read_line(&mut first_line).expect(&("Error reading ".to_string() + &path));
     }
 
     lazy_static!{
