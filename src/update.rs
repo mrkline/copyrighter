@@ -197,33 +197,14 @@ struct Mapping {
     // mmap gives a pointer.
     ptr: *mut libc::c_void,
     // munmap wants the size we asked for with mmap.
-    aligned_length: libc::size_t,
-}
-
-// Sizes passed to mmap need to be page-aligned.
-// See http://stackoverflow.com/a/3407254/713961
-fn round_to_page(len: libc::size_t) -> libc::size_t {
-    lazy_static!{ // The page size won't change under our feet. Ask once.
-        static ref PAGE_SIZE : libc::size_t = unsafe {
-            libc::sysconf(libc::_SC_PAGESIZE) as libc::size_t
-        };
-    }
-    let remainder = len % *PAGE_SIZE;
-
-    if remainder == 0 {
-        len
-    }
-    else {
-        len + *PAGE_SIZE - remainder
-    }
+    file_length: libc::size_t,
 }
 
 impl Mapping {
     fn open(fd: RawFd, file_length: usize) -> io::Result<Mapping> {
-        let aligned_length = round_to_page(file_length as libc::size_t);
         let mapping = unsafe {
             libc::mmap(ptr::null_mut(),
-                       aligned_length,
+                       file_length,
                        libc::PROT_READ | libc::PROT_WRITE,
                        libc::MAP_SHARED,
                        fd, 0)
@@ -232,7 +213,7 @@ impl Mapping {
             Err(io::Error::last_os_error())
         }
         else {
-            Ok(Mapping{ ptr: mapping, aligned_length: aligned_length })
+            Ok(Mapping{ ptr: mapping, file_length: file_length })
         }
     }
 
@@ -248,7 +229,7 @@ impl Mapping {
 impl Drop for Mapping {
     fn drop(&mut self) {
         unsafe {
-            assert!(libc::munmap(self.ptr, self.aligned_length) == 0,
+            assert!(libc::munmap(self.ptr, self.file_length) == 0,
                     "munmap failed with {}", io::Error::last_os_error());
         }
     }
