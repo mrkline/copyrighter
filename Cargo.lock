@@ -3,7 +3,7 @@ name = "copyrighter"
 version = "0.1.0"
 dependencies = [
  "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "git-historian 0.1.0 (git+https://github.com/mrkline/git-historian.git)",
+ "git-historian 0.2.0 (git+https://github.com/mrkline/git-historian.git)",
  "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -28,8 +28,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "git-historian"
-version = "0.1.0"
-source = "git+https://github.com/mrkline/git-historian.git#8a23b054fecd72f7f45402322bec831e623b396f"
+version = "0.2.0"
+source = "git+https://github.com/mrkline/git-historian.git#3f2e65ee20edebaf034bbfebef1f50000f090efa"
 dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

@@ -6,9 +6,9 @@ extern crate time;
 use std::thread;
 use std::sync::mpsc;
 
-use git_historian::history::{gather_history, Link, HistoryNode};
+use git_historian::history::gather_history;
 use git_historian::parsing::{get_history, ParsedCommit};
-use git_historian::PathSet;
+use git_historian::{Link, HistoryNode, PathSet};
 
 use common::{Year, YearMap};
 
@@ -22,7 +22,7 @@ fn get_year_map_thread(paths: PathSet) -> YearMap {
     // One thread reads output from git-log; this one consumes and parses it.
     let (tx, rx) = mpsc::sync_channel(0);
 
-    let handle = thread::spawn(|| get_history(tx));
+    let handle = thread::spawn(|| get_history(tx, |_| true));
 
     let history = gather_history(&paths, &get_year, rx);
 
