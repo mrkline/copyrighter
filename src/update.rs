@@ -1,5 +1,7 @@
 //! Updates copyright headers based on the information gathered.
 
+#![allow(mutex_atomic)] // We need a mutex for the CV, so atomics aren't helpful.
+
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
@@ -75,7 +77,7 @@ fn update_file(path: String, years : Vec<Year>, ss : Arc<SyncState>) {
     let mut new_first_line : String;
     let replacing_existing_notice : bool;
 
-    match COPYRIGHT_OPENER.captures(&old_first_line) {
+    match COPYRIGHT_OPENER.captures(old_first_line) {
         // If there's an existing copyright notice, update that.
         Some(capture) => {
             // Preserve the existing // or /* and following whitespace.

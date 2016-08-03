@@ -86,25 +86,21 @@ fn main() {
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     // Merge the smaller map into the larger to try to avoid a realloc
-    let mut larger;
-    let smaller;
-    if git_years.len() > header_years.len() {
-        larger = git_years;
-        smaller = header_years;
+    let (mut larger, smaller) = if git_years.len() > header_years.len() {
+        (git_years, header_years)
     }
     else {
-        larger = header_years;
-        smaller = git_years;
-    }
+        (header_years, git_years)
+    };
 
     // Transfer all of smaller's entries into larger.
     for (k, mut v) in smaller.into_iter() {
-        let e = larger.entry(k).or_insert(Vec::new());
+        let e = larger.entry(k).or_insert_with(Vec::new);
         e.append(&mut v);
     }
 
     // Sort and dedup our master map.
-    for (_, v) in larger.iter_mut() {
+    for (_, v) in &mut larger {
         v.sort();
         v.dedup();
         // Once sorted and deduped, we won't be modifying this anymore,
