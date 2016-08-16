@@ -22,9 +22,9 @@ fn get_year_map_thread(paths: PathSet) -> YearMap {
     // One thread reads output from git-log; this one consumes and parses it.
     let (tx, rx) = mpsc::sync_channel(0);
 
-    let handle = thread::spawn(|| get_history(tx, |_| true));
+    let handle = thread::spawn(|| get_history(tx));
 
-    let history = gather_history(&paths, &get_year, rx);
+    let history = gather_history(&paths, &get_year, |_| true, rx);
 
     let mut ret = YearMap::new();
 
@@ -43,7 +43,9 @@ fn get_year_map_thread(paths: PathSet) -> YearMap {
 // for the files we care about. Walk the nodes of the tree and store the years.
 fn walk_history(node: &Link<HistoryNode<Year>>, append_to: &mut Vec<Year>) {
     let nb = node.borrow();
-    append_to.push(nb.data);
+    if let Some(ref data) = nb.data {
+        append_to.push(**data);
+    }
 
     if let Some(ref prev) = nb.previous {
         walk_history(prev, append_to)
