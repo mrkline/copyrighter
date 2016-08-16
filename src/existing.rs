@@ -3,9 +3,9 @@
 //! to Git.
 
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::io::prelude::*;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::mpsc;
 use std::thread;
 
 use git_historian::PathSet;
@@ -15,59 +15,51 @@ use regex::Regex;
 
 use common::{Year, YearMap};
 
-struct SharedState {
-    // We'll keep track of how many paths we have left in order to know
-    // when to stop waiting for results.
-    paths_remaining: usize,
-
-    // Option is used so we can extract the result at the end.
-    // See http://stackoverflow.com/q/29177449/713961.
-    result : Option<YearMap>,
-}
-
-struct SyncState {
-    mutex : Mutex<SharedState>,
-    // We'll notify the CV when we have no remaining paths to process.
-    cv : Condvar
-}
-
 #[inline]
 pub fn get_year_map(paths: PathSet) -> thread::JoinHandle<YearMap> {
     thread::spawn(|| get_year_map_thread(paths))
 }
 
 fn get_year_map_thread(paths: PathSet) -> YearMap {
-    // Strap together an ARC for all our shared state
-    let shared_state = Arc::new(
-        SyncState{ mutex: Mutex::new(SharedState{paths_remaining: paths.len(),
-                                                 result: Some(YearMap::new())}),
-                   cv: Condvar::new() });
-
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
     // by the I/O of actually reading the files, but we can let the OS'es I/O
     // scheduler figure that out.
     let thread_pool = ThreadPool::new(num_cpus::get());
 
+    let (tx, rx) = mpsc::channel();
+
     for path in paths.into_iter() { // Consume our paths
-        let ss = shared_state.clone(); // Bump the refcount
-        thread_pool.execute(|| scan_file(path, ss));
+        let tx_clone = tx.clone();
+        thread_pool.execute(move || {
+            let result = scan_file(&path);
+            tx_clone.send((path, result)).unwrap()
+        });
+    }
+    // Dropping the original tx here means rx.recv() will fail
+    // once all senders have finished.
+    drop(tx);
+
+    let mut ret = YearMap::new();
+
+    // Slurp our our paths until there aren't any more
+    while let Ok((path, result)) = rx.recv() {
+        // scan_file succeeded or we should print the I/O error and move on.
+        match result {
+            Ok(v) => assert!(ret.insert(path, v).is_none()),
+            Err(e) => writeln!(&mut io::stderr(), "Error reading {}: {}", path, e).unwrap()
+        };
     }
 
-    // Sleep until we've processed all paths.
-    let mut guard = shared_state.mutex.lock().unwrap();
-    while guard.paths_remaining > 0 {
-        guard = shared_state.cv.wait(guard).unwrap();
-    }
-    guard.result.take().unwrap()
+    ret
 }
 
-fn scan_file(path: String, ss : Arc<SyncState>) {
+fn scan_file(path: &str) -> io::Result<Vec<Year>> {
     // Open the file and read in the first line.
     let mut first_line = String::new();
     {
-        let fh = File::open(&path).expect(&("Error opening ".to_string() + &path));
+        let fh = try!(File::open(path));
         let mut br = BufReader::new(fh);
-        br.read_line(&mut first_line).expect(&("Error reading ".to_string() + &path));
+        try!(br.read_line(&mut first_line));
     }
 
     lazy_static!{
@@ -77,15 +69,12 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
             r"((\d{4})\s*[-–—]\s*(\d{4}))|(\d{4})").unwrap();
     }
 
+    let mut years : Vec<Year> = Vec::new();
+
     // The first line isn't a copyright line. Move on to the next file.
     if !COPYRIGHT.is_match(&first_line) {
-        let mut guard = ss.mutex.lock().unwrap();
-        guard.paths_remaining -= 1;
-        if guard.paths_remaining == 0 { ss.cv.notify_all(); }
-        return;
+        return Ok(years);
     }
-
-    let mut years : Vec<Year> = Vec::new();
 
     for cap in YEAR_OR_RANGE.captures_iter(&first_line) {
         match cap.at(1) {
@@ -103,11 +92,5 @@ fn scan_file(path: String, ss : Arc<SyncState>) {
         };
     }
 
-    // Take the lock on the shared state
-    let mut guard = ss.mutex.lock().unwrap();
-    // Insert our newfound years.
-    guard.result.as_mut().unwrap().insert(path, years);
-
-    guard.paths_remaining -= 1;
-    if guard.paths_remaining == 0 { ss.cv.notify_all(); }
+    Ok(years)
 }
