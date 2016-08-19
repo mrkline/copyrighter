@@ -14,13 +14,15 @@ mod history;
 mod existing;
 mod update;
 
+use std::collections::HashSet;
 use std::env;
 use std::io::prelude::*;
 use std::process::{Command, Stdio, exit};
 use std::str;
+use std::thread;
 
 use getopts::Options;
-use git_historian::PathSet;
+use git_historian::{PathSet, SHA1};
 
 use common::YearMap;
 
@@ -40,6 +42,10 @@ fn main() {
     opts.optopt("o", "organization",
                 "The organization claiming the copyright, and any following text",
                 "<org>");
+    opts.optopt("i", "ignore-commits",
+                "Ignore the listed commits when examining history",
+                "<commit1[,commit2,...]>");
+
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(e) => {
@@ -64,6 +70,9 @@ fn main() {
 
     assert_at_repo_top();
 
+    // Get the SHAs of commits we want to ignore
+    let ignores = get_commits_to_ignore(matches.opt_str("i"));
+
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::with_capacity(matches.free.len());
     for path in matches.free {
@@ -72,8 +81,11 @@ fn main() {
 
     // Kick off two threads: one gets when files were modified via Git history,
     // and the other searches the files themselves for existing copyright info.
-    let git_years_handle = history::get_year_map(paths.clone());
-    let header_years_handle = existing::get_year_map(paths);
+    let pc = paths.clone();
+    let git_years_handle =
+        thread::spawn(|| history::get_year_map(pc, ignores));
+    let header_years_handle =
+        thread::spawn(|| existing::get_year_map(paths));
 
     // Let them finish.
     let header_years : YearMap =  header_years_handle.join().unwrap();
@@ -86,13 +98,12 @@ fn main() {
 }
 
 fn assert_at_repo_top() {
-    let child = Command::new("git")
+    let output = Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")
         .stdout(Stdio::piped())
-        .spawn().expect("Couldn't spawn `git rev-parse` to find top-level dir");
-
-    let output = child.wait_with_output().expect("git rev-parse did not exit cleanly");
+        .stderr(Stdio::inherit())
+        .output().expect("Couldn't run `git rev-parse` to find top-level dir");
 
     if !output.status.success() {
         writeln!(&mut std::io::stderr(), "Error: not in a Git directory").unwrap();
@@ -112,6 +123,39 @@ fn assert_at_repo_top() {
                  "(This makes reasoning about paths much simpler.)").unwrap();
         exit(1);
     }
+}
+
+fn get_commits_to_ignore<S: AsRef<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {
+    let ignore_arg = match ignore_arg {
+        Some(a) => a,
+        None => return HashSet::new()
+    };
+
+    ignore_arg.as_ref().split(',')
+        .map(|c| commit_ish_into_sha(c.trim())).collect()
+}
+
+fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--verify")
+        .arg(commit_ish)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output().expect("Couldn't spawn `git rev-parse` to parse ignored commit");
+
+    if !output.status.success() {
+        writeln!(&mut std::io::stderr(),
+                 "Error: git rev-parsed failed to parse {:?}",
+                 commit_ish).unwrap();
+        exit(1);
+    }
+
+    let sha_slice = str::from_utf8(&output.stdout)
+        .expect("git rev-parse returned invalid UTF-8")
+        .trim();
+
+    SHA1::parse(sha_slice).expect("git rev-parsed didn't return a valid SHA1")
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {

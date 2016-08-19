@@ -6,7 +6,6 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::io::prelude::*;
 use std::sync::mpsc;
-use std::thread;
 
 use git_historian::PathSet;
 use num_cpus;
@@ -15,12 +14,7 @@ use regex::Regex;
 
 use common::{Year, YearMap};
 
-#[inline]
-pub fn get_year_map(paths: PathSet) -> thread::JoinHandle<YearMap> {
-    thread::spawn(|| get_year_map_thread(paths))
-}
-
-fn get_year_map_thread(paths: PathSet) -> YearMap {
+pub fn get_year_map(paths: PathSet) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
     // by the I/O of actually reading the files, but we can let the OS'es I/O
     // scheduler figure that out.
