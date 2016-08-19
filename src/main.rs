@@ -14,6 +14,7 @@ mod history;
 mod existing;
 mod update;
 
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::env;
 use std::io::prelude::*;
@@ -125,13 +126,13 @@ fn assert_at_repo_top() {
     }
 }
 
-fn get_commits_to_ignore<S: AsRef<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {
+fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {
     let ignore_arg = match ignore_arg {
         Some(a) => a,
         None => return HashSet::new()
     };
 
-    ignore_arg.as_ref().split(',')
+    ignore_arg.borrow().split(',')
         .map(|c| commit_ish_into_sha(c.trim())).collect()
 }
 
