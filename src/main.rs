@@ -15,8 +15,8 @@ mod existing;
 mod update;
 
 use std::env;
-use std::io::Write;
-use std::process::exit;
+use std::io::prelude::*;
+use std::process::{Command, Stdio, exit};
 use std::str;
 
 use getopts::Options;
@@ -53,7 +53,6 @@ fn main() {
         print_usage(&opts, 0);
     }
 
-    // TODO: Assert that we're in the top directory of a Git repo.
     let organization = match matches.opt_str("o") {
         Some(o) => o,
         None => { // -o is mandatory.
@@ -62,6 +61,8 @@ fn main() {
             print_usage(&opts, 1);
         }
     };
+
+    assert_at_repo_top();
 
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::with_capacity(matches.free.len());
@@ -82,6 +83,35 @@ fn main() {
 
     // Take all the info we've learned, and update (or create) copyright headers.
     update::update_headers(all_years, organization);
+}
+
+fn assert_at_repo_top() {
+    let child = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .stdout(Stdio::piped())
+        .spawn().expect("Couldn't spawn `git rev-parse` to find top-level dir");
+
+    let output = child.wait_with_output().expect("git rev-parse did not exit cleanly");
+
+    if !output.status.success() {
+        writeln!(&mut std::io::stderr(), "Error: not in a Git directory").unwrap();
+        exit(1);
+    }
+
+    let tld = String::from_utf8(output.stdout)
+        .expect("git rev-parse returned invalid UTF-8");
+
+    let trimmed_tld = tld.trim();
+
+    let cwd = env::current_dir().expect("Couldn't get current directory");
+
+    if trimmed_tld != cwd.to_str().expect("Current directory is not valid UTF-8") {
+        writeln!(&mut std::io::stderr(), "{}\n{}",
+                 "Error: not at the top of a Git directory",
+                 "(This makes reasoning about paths much simpler.)").unwrap();
+        exit(1);
+    }
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
