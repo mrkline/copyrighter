@@ -132,7 +132,7 @@ fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1>
         None => return HashSet::new()
     };
 
-    ignore_arg.borrow().split(',')
+    ignore_arg.borrow().split(',').filter(|s| !s.is_empty())
         .map(|c| commit_ish_into_sha(c.trim())).collect()
 }
 
