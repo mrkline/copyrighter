@@ -36,7 +36,7 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
     let mut ret = YearMap::new();
 
     // Slurp our our paths until there aren't any more
-    for (path, result) in rx.recv() {
+    for (path, result) in rx {
         // scan_file succeeded or we should print the I/O error and move on.
         match result {
             Ok(v) => assert!(ret.insert(path, v).is_none()),

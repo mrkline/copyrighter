@@ -39,7 +39,7 @@ pub fn update_headers(map: YearMap, organization: String) {
 
 
     // Slurp our our paths until there aren't any more
-    for (path, result) in rx.recv() {
+    for (path, result) in rx {
         match result {
             Ok(()) => { /* Everything worked, nothing to do */ },
             Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", path, e).unwrap()
