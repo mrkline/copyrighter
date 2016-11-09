@@ -169,7 +169,7 @@ fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     };
 
     // Transfer all of smaller's entries into larger.
-    for (k, mut v) in smaller.into_iter() {
+    for (k, mut v) in smaller {
         let e = larger.entry(k).or_insert_with(Vec::new);
         e.append(&mut v);
     }

@@ -22,7 +22,7 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
 
     let (tx, rx) = mpsc::channel();
 
-    for path in paths.into_iter() { // Consume our paths
+    for path in paths { // Consume our paths
         let tx_clone = tx.clone();
         thread_pool.execute(move || {
             let result = scan_file(&path);
