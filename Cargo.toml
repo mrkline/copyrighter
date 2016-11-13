@@ -5,7 +5,7 @@ authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
 
 [dependencies]
 getopts = "0.2" # Args parsing
-git-historian = { git = "https://github.com/mrkline/git-historian.git" }
+git-historian = "0.3" # Getting Git history
 time = "0.1" # Fiddling with Git commit times
 threadpool = "1.3" # Use thread pools to parallelize our work.
 num_cpus = "0.2.13" # How big should we make the thread pool?
