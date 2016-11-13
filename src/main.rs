@@ -1,3 +1,34 @@
+//! Copyrighter uses Git history and existing copyright notices to generate updated
+//! ones for files.
+//!
+//! # Usage:
+//!
+//! ```text
+//! copyrighter -o <organization> -i <commits>
+//! ```
+//!
+//! where
+//!
+//! ```
+//! --organization, -o
+//!   The organization claiming the copyright, and any following text
+//!
+//! --ignore-commits, -i <commit1[,commit2,...]>
+//!   Ignore the listed commits when examining history.
+//!   Commits are looked up using git rev-parse
+//! ```
+//!
+//!
+//! # Example
+//!
+//! To update all .cpp and .h files in a project,
+//!
+//! ```sh
+//! $ cd my_project
+//! $ find -type f \( -name '*.cpp' -or -name '*.h'\) \
+//!     -exec copyrighter --organization "Fluke Corporation. All rights reserved." {} +
+//! ```
+
 extern crate getopts;
 extern crate git_historian;
 extern crate itertools;
@@ -147,7 +178,7 @@ fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
 
     if !output.status.success() {
         writeln!(&mut std::io::stderr(),
-                 "Error: git rev-parsed failed to parse {:?}",
+                 "Error: git rev-parse failed to parse {:?}",
                  commit_ish).unwrap();
         exit(1);
     }

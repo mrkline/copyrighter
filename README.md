@@ -1,7 +1,7 @@
 Copyrighter uses Git history and existing copyright notices to generate updated
 ones for files.
 
-## Examplse usage
+## Example usage
 
 To update all .cpp and .h files in a project,
 ```
