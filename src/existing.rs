@@ -71,13 +71,13 @@ fn scan_file(path: &str) -> io::Result<Vec<Year>> {
     }
 
     for cap in YEAR_OR_RANGE.captures_iter(&first_line) {
-        match cap.at(1) {
+        match cap.get(1) {
             // A single year:
-            None => { years.push(cap.at(4).unwrap().parse().unwrap()); },
+            None => { years.push(cap.get(4).unwrap().as_str().parse().unwrap()); },
             // A range of years (<yyyy>-<yyyy>):
             Some(_) => {
-                let start : Year = cap.at(2).unwrap().parse().unwrap();
-                let end : Year = cap.at(3).unwrap().parse().unwrap();
+                let start : Year = cap.get(2).unwrap().as_str().parse().unwrap();
+                let end : Year = cap.get(3).unwrap().as_str().parse().unwrap();
 
                 for i in start .. end+1 {
                     years.push(i);

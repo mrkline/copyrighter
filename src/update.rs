@@ -74,7 +74,7 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
         // If there's an existing copyright notice, update that.
         Some(capture) => {
             // Preserve the existing // or /* and following whitespace.
-            new_first_line = capture.at(1).unwrap().to_string();
+            new_first_line = capture.get(1).unwrap().as_str().to_owned();
             replacing_existing_notice = true;
         }
         // Otherwise we'll add one.
