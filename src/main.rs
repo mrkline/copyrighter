@@ -70,7 +70,7 @@ fn main() {
 
     // Args parsing via getopts
     let mut opts = Options::new();
-    opts.optflag("h", "help", "Print this help menu");
+    opts.optflag("h", "help", "Print this help text.");
     opts.optopt("o", "organization",
                 "The organization claiming the copyright, and any following text",
                 "<org>");
@@ -187,7 +187,7 @@ fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
         .expect("git rev-parse returned invalid UTF-8")
         .trim();
 
-    SHA1::parse(sha_slice).expect("git rev-parsed didn't return a valid SHA1")
+    SHA1::parse(sha_slice).expect("git rev-parse didn't return a valid SHA1")
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {

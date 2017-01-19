@@ -6,7 +6,7 @@ ones for files.
 To update all .cpp and .h files in a project,
 ```
 $ cd my_project
-$ find -type f \( -name '*.cpp' -or -name '*.h'\) \
+$ find -type f \( -name '*.cpp' -or -name '*.h' \) \
     -exec copyrighter --organization "Fluke Corporation. All rights reserved." {} +
 ```
 
