@@ -206,7 +206,7 @@ fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     }
 
     // Sort and dedup our master map.
-    for (_, v) in &mut larger {
+    for v in larger.values_mut() {
         v.sort();
         v.dedup();
         // Once sorted and deduped, we won't be modifying this anymore,
