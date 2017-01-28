@@ -51,9 +51,9 @@ fn scan_file(path: &str) -> io::Result<Vec<Year>> {
     // Open the file and read in the first line.
     let mut first_line = String::new();
     {
-        let fh = try!(File::open(path));
+        let fh = File::open(path)?;
         let mut br = BufReader::new(fh);
-        try!(br.read_line(&mut first_line));
+        br.read_line(&mut first_line)?;
     }
 
     lazy_static!{
