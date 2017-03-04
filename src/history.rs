@@ -18,11 +18,11 @@ pub fn get_year_map(paths: PathSet, ignore_commits: HashSet<SHA1>) -> YearMap
     // One thread reads output from git-log; this one consumes and parses it.
     let (tx, rx) = mpsc::sync_channel(0);
 
-    let handle = thread::spawn(|| get_history(tx));
+    let handle = thread::spawn(move || get_history(&tx));
 
     let history = gather_history(&paths, &get_year,
                                  |commit| !ignore_commits.contains(&commit.id),
-                                 rx);
+                                 &rx);
 
     let mut ret = YearMap::new();
 
