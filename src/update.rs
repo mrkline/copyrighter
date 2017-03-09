@@ -118,6 +118,9 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
 /// 3. The file fits comfortably in memory space. Besides, if a *code* file
 ///    is more than a few dozen kilobytes, you have other problems.
 fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io::Result<()> {
+    // We simplify casting and math below if we can assume offset can be signed.
+    assert!(!offset <= isize::max_value() as usize);
+
     // Don't let us slide contents past the start of the file.
     assert!(offset as isize + amount >= 0);
 
@@ -132,7 +135,8 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
     // and if a code file is that big...
     let file_length_64 : u64 = rust_handle.metadata()?.len();
     if file_length_64 > isize::max_value() as u64 {
-        panic!("One of the given code files is > 2GB. Call a doctor...");
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+                                  "The file is too large to be mapped."));
     }
     let file_length = file_length_64 as usize;
 
@@ -218,7 +222,7 @@ impl Mapping {
 impl Drop for Mapping {
     fn drop(&mut self) {
         unsafe {
-            assert!(libc::munmap(self.ptr, self.file_length) == 0,
+            assert_eq!(libc::munmap(self.ptr, self.file_length), 0,
                     "munmap failed with {}", io::Error::last_os_error());
         }
     }
