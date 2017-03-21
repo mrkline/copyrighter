@@ -115,7 +115,7 @@ fn main() {
     // and the other searches the files themselves for existing copyright info.
     let pc = paths.clone();
     let git_years_handle =
-        thread::spawn(|| history::get_year_map(pc, ignores));
+        thread::spawn(move || history::get_year_map(&pc, &ignores));
     let header_years_handle =
         thread::spawn(|| existing::get_year_map(paths));
 

@@ -156,14 +156,14 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
 
         // Then shrink it.
         unsafe {
-            assert!(libc::ftruncate(fd, new_length) == 0);
+            assert_eq!(libc::ftruncate(fd, new_length), 0);
         }
     }
     else if amount > 0 { // We have to grow the file.
         // Use fallocate instead of ftruncate to ensure that we have the room
         // on disk. See the man pages for posix_fallocate and ftruncate.
         unsafe {
-            assert!(libc::posix_fallocate(fd, 0, new_length) == 0);
+            assert_eq!(libc::posix_fallocate(fd, 0, new_length), 0);
         }
 
         // Shift the contents over.
