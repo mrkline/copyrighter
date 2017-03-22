@@ -58,6 +58,17 @@ use git_historian::{PathSet, SHA1};
 
 use common::YearMap;
 
+// Convenience macro to print to stderr
+// See http://stackoverflow.com/a/32707058
+macro_rules! stderr {
+    ($($arg:tt)*) => (
+        match writeln!(&mut ::std::io::stderr(), $($arg)* ) {
+            Ok(_) => {},
+            Err(x) => panic!("Unable to write to stderr (file handle closed?): {}", x),
+        }
+    )
+}
+
 // Print our usage string and exit the program with the given code.
 // (This never returns.)
 fn print_usage(opts: &Options, code: i32) -> ! {
@@ -82,7 +93,7 @@ fn main() {
         Ok(m) => m,
         Err(e) => {
             // If the user messes up the args, print the error and usage string.
-            writeln!(&mut std::io::stderr(), "{}", e.to_string()).unwrap();
+            stderr!("{}", e.to_string());
             print_usage(&opts, 1);
         }
     };
@@ -94,8 +105,7 @@ fn main() {
     let organization = match matches.opt_str("o") {
         Some(o) => o,
         None => { // -o is mandatory.
-            writeln!(&mut std::io::stderr(),
-                     "Required option 'organization' is missing.").unwrap();
+            stderr!("Required option 'organization' is missing.");
             print_usage(&opts, 1);
         }
     };
@@ -138,7 +148,7 @@ fn assert_at_repo_top() {
         .output().expect("Couldn't run `git rev-parse` to find top-level dir");
 
     if !output.status.success() {
-        writeln!(&mut std::io::stderr(), "Error: not in a Git directory").unwrap();
+        stderr!("Error: not in a Git directory");
         exit(1);
     }
 
@@ -150,9 +160,9 @@ fn assert_at_repo_top() {
     let cwd = env::current_dir().expect("Couldn't get current directory");
 
     if trimmed_tld != cwd.to_str().expect("Current directory is not valid UTF-8") {
-        writeln!(&mut std::io::stderr(), "{}\n{}",
-                 "Error: not at the top of a Git directory",
-                 "(This makes reasoning about paths much simpler.)").unwrap();
+        stderr!("{}\n{}",
+                "Error: not at the top of a Git directory",
+                "(This makes reasoning about paths much simpler.)");
         exit(1);
     }
 }
@@ -177,9 +187,7 @@ fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
         .output().expect("Couldn't spawn `git rev-parse` to parse ignored commit");
 
     if !output.status.success() {
-        writeln!(&mut std::io::stderr(),
-                 "Error: git rev-parse failed to parse {:?}",
-                 commit_ish).unwrap();
+        stderr!("Error: git rev-parse failed to parse {:?}", commit_ish);
         exit(1);
     }
 
