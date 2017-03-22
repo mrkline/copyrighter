@@ -119,7 +119,7 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
 ///    is more than a few dozen kilobytes, you have other problems.
 fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io::Result<()> {
     // We simplify casting and math below if we can assume offset can be signed.
-    assert!(!offset <= isize::max_value() as usize);
+    assert!(offset <= isize::max_value() as usize);
 
     // Don't let us slide contents past the start of the file.
     assert!(offset as isize + amount >= 0);
