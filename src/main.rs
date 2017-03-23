@@ -30,7 +30,6 @@
 //! ```
 
 extern crate getopts;
-extern crate git_historian;
 extern crate itertools;
 extern crate libc;
 extern crate num_cpus;
@@ -57,9 +56,8 @@ use std::process::exit;
 use std::thread;
 
 use getopts::Options;
-use git_historian::{PathSet, SHA1};
 
-use common::{Year, YearMap};
+use common::*;
 use git::*;
 
 // Print our usage string and exit the program with the given code.
@@ -122,7 +120,7 @@ fn main() {
     // and the other searches the files themselves for existing copyright info.
     let pc = paths.clone();
     let git_years_handle =
-        thread::spawn(move || history::get_year_map(&pc, &ignores));
+        thread::spawn(move || history::get_year_map(&pc, ignores));
     let header_years_handle =
         thread::spawn(|| existing::get_year_map(paths));
 

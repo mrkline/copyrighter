@@ -4,53 +4,45 @@
 extern crate time;
 
 use std::collections::HashSet;
-use std::thread;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 
-use git_historian::history::gather_history;
-use git_historian::parsing::{get_history, ParsedCommit};
-use git_historian::{Link, HistoryNode, PathSet, SHA1};
+use num_cpus;
+use threadpool::ThreadPool;
 
-use common::{Year, YearMap};
+use git::*;
+use common::*;
 
-pub fn get_year_map(paths: &PathSet, ignore_commits: &HashSet<SHA1>) -> YearMap
+pub fn get_year_map(paths: &PathSet, ignore_commits: HashSet<SHA1>) -> YearMap
 {
+    // Let's paralellize! I'm assuming this process will be largely bottlenecked
+    // by the I/O of actually reading the files, but we can let the OS'es I/O
+    // scheduler figure that out.
+    let thread_pool = ThreadPool::new(num_cpus::get());
+
     // One thread reads output from git-log; this one consumes and parses it.
     let (tx, rx) = mpsc::sync_channel(0);
 
-    let handle = thread::spawn(move || get_history(&tx));
+    let ignores = Arc::new(ignore_commits);
 
-    let history = gather_history(paths, &get_year,
-                                 |commit| !ignore_commits.contains(&commit.id),
-                                 &rx);
+    for path in paths {
+        let path_clone = path.clone();
+        let tx_clone = tx.clone();
+        let ignores_clone = ignores.clone();
+        thread_pool.execute(move || {
+            let file_history = get_file_years(&path_clone, &ignores_clone);
+            tx_clone.send((path_clone, file_history)).unwrap();
+        });
+    }
+    // Dropping the original tx here means rx.recv() will fail
+    // once all senders have finished.
+    drop(tx);
 
     let mut ret = YearMap::new();
 
-    for (key, val) in history {
-        let mut years : Vec<Year> = Vec::new();
-        walk_history(&val, &mut years);
-        // We're not going to sort or dedup here since we will later.
-        // (See combine_year_maps())
-        ret.insert(key, years);
+    // Slurp our our history for all paths
+    for (path, file_history) in rx {
+        ret.insert(path, file_history);
     }
-    handle.join().unwrap();
+
     ret
-}
-
-// The history we're given is a "tree" of nodes, containing per-commit info
-// for the files we care about. Walk the nodes of the tree and store the years.
-fn walk_history(node: &Link<HistoryNode<Year>>, append_to: &mut Vec<Year>) {
-    let nb = node.borrow();
-    if let Some(ref data) = nb.data {
-        append_to.push(**data);
-    }
-
-    if let Some(ref prev) = nb.previous {
-        walk_history(prev, append_to)
-    }
-}
-
-// For the copyright, we only care to extract the year from each commit.
-fn get_year(c: &ParsedCommit) -> Year {
-    (time::at(c.when).tm_year + 1900) as Year
 }

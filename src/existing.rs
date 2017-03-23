@@ -7,12 +7,11 @@ use std::io::{self, BufReader};
 use std::io::prelude::*;
 use std::sync::mpsc;
 
-use git_historian::PathSet;
 use num_cpus;
 use threadpool::ThreadPool;
 use regex::Regex;
 
-use common::{Year, YearMap};
+use common::*;
 
 pub fn get_year_map(paths: PathSet) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
@@ -40,7 +39,7 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
         // scan_file succeeded or we should print the I/O error and move on.
         match result {
             Ok(v) => assert!(ret.insert(path, v).is_none()),
-            Err(e) => writeln!(&mut io::stderr(), "Error reading {}: {}", path, e).unwrap()
+            Err(e) => stderr!("Error reading {}: {}", path, e)
         };
     }
 
