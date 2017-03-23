@@ -56,7 +56,7 @@ use std::thread;
 use getopts::Options;
 use git_historian::{PathSet, SHA1};
 
-use common::YearMap;
+use common::{Year, YearMap};
 
 // Convenience macro to print to stderr
 // See http://stackoverflow.com/a/32707058
@@ -115,6 +115,10 @@ fn main() {
     // Get the SHAs of commits we want to ignore
     let ignores = get_commits_to_ignore(matches.opt_str("i"));
 
+    // Grab the first year of the commit so we can use it later.
+    // (If we do it now, we can skip all the work below if it fails).
+    let first_git_year = get_first_commit_year();
+
     // Assume free arguments are paths we want to examine
     let mut paths = PathSet::with_capacity(matches.free.len());
     for path in matches.free {
@@ -130,8 +134,11 @@ fn main() {
         thread::spawn(|| existing::get_year_map(paths));
 
     // Let them finish.
-    let header_years : YearMap =  header_years_handle.join().unwrap();
-    let git_years : YearMap =  git_years_handle.join().unwrap();
+    let mut header_years : YearMap = header_years_handle.join().unwrap();
+    let git_years : YearMap = git_years_handle.join().unwrap();
+
+    // Strip header-provided years that overlap with Git history.
+    trim_header_years(&mut header_years, first_git_year);
 
     let all_years = combine_year_maps(header_years, git_years);
 
@@ -196,6 +203,45 @@ fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
         .trim();
 
     SHA1::parse(sha_slice).expect("git rev-parse didn't return a valid SHA1")
+}
+
+fn trim_header_years(header_years: &mut YearMap, first_year: Year) {
+    // We trust Git history more than we do copyright comments,
+    // so discard all years after the year of the first Git commit
+    // from the ones we parsed out of the files.
+    //
+    // Unless the first commit was made at 00:00:00 on January 1,
+    // there's a chance changes were made that year before Git,
+    // so we keep the first year around.
+    for val in header_years.values_mut() {
+        val.retain(|&y| y <= first_year);
+    }
+}
+
+fn get_first_commit_year() -> Year {
+    let output = Command::new("git")
+        .arg("log")
+        .arg("--max-parents=0")
+        .arg("--format=%aI")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output().expect("Couldn't spawn `git log` to get first commit timestamp");
+
+    if !output.status.success() {
+        stderr!("Error: Couldn't run Git to find the first commit date");
+        exit(1);
+    }
+
+    // ISO-8601: The year is everything before the first dash.
+    let date_string = str::from_utf8(&output.stdout)
+        .expect("git log returned invalid UTF-8")
+        .trim()
+        .split('\n')
+        .last().unwrap();
+
+    // Find the dash
+    let dash_index = date_string.find('-').expect("Didn't find dash in ISO-8601 output");
+    date_string[.. dash_index].parse().expect("Couldn't parse first commit year")
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
