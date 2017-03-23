@@ -40,34 +40,27 @@ extern crate threadpool;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+mod stderr;
+
 mod common;
-mod history;
 mod existing;
+mod git;
+mod history;
 mod update;
 
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::env;
 use std::io::prelude::*;
-use std::process::{Command, Stdio, exit};
-use std::str;
+use std::process::exit;
 use std::thread;
 
 use getopts::Options;
 use git_historian::{PathSet, SHA1};
 
 use common::{Year, YearMap};
-
-// Convenience macro to print to stderr
-// See http://stackoverflow.com/a/32707058
-macro_rules! stderr {
-    ($($arg:tt)*) => (
-        match writeln!(&mut ::std::io::stderr(), $($arg)* ) {
-            Ok(_) => {},
-            Err(x) => panic!("Unable to write to stderr (file handle closed?): {}", x),
-        }
-    )
-}
+use git::*;
 
 // Print our usage string and exit the program with the given code.
 // (This never returns.)
@@ -146,34 +139,6 @@ fn main() {
     update::update_headers(all_years, organization);
 }
 
-fn assert_at_repo_top() {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .output().expect("Couldn't run `git rev-parse` to find top-level dir");
-
-    if !output.status.success() {
-        stderr!("Error: not in a Git directory");
-        exit(1);
-    }
-
-    let tld = String::from_utf8(output.stdout)
-        .expect("git rev-parse returned invalid UTF-8");
-
-    let trimmed_tld = tld.trim();
-
-    let cwd = env::current_dir().expect("Couldn't get current directory");
-
-    if trimmed_tld != cwd.to_str().expect("Current directory is not valid UTF-8") {
-        stderr!("{}\n{}",
-                "Error: not at the top of a Git directory",
-                "(This makes reasoning about paths much simpler.)");
-        exit(1);
-    }
-}
-
 fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {
     let ignore_arg = match ignore_arg {
         Some(a) => a,
@@ -182,27 +147,6 @@ fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1>
 
     ignore_arg.borrow().split(',').filter(|s| !s.is_empty())
         .map(|c| commit_ish_into_sha(c.trim())).collect()
-}
-
-fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--verify")
-        .arg(commit_ish)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .output().expect("Couldn't spawn `git rev-parse` to parse ignored commit");
-
-    if !output.status.success() {
-        stderr!("Error: git rev-parse failed to parse {:?}", commit_ish);
-        exit(1);
-    }
-
-    let sha_slice = str::from_utf8(&output.stdout)
-        .expect("git rev-parse returned invalid UTF-8")
-        .trim();
-
-    SHA1::parse(sha_slice).expect("git rev-parse didn't return a valid SHA1")
 }
 
 fn trim_header_years(header_years: &mut YearMap, first_year: Year) {
@@ -216,32 +160,6 @@ fn trim_header_years(header_years: &mut YearMap, first_year: Year) {
     for val in header_years.values_mut() {
         val.retain(|&y| y <= first_year);
     }
-}
-
-fn get_first_commit_year() -> Year {
-    let output = Command::new("git")
-        .arg("log")
-        .arg("--max-parents=0")
-        .arg("--format=%aI")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .output().expect("Couldn't spawn `git log` to get first commit timestamp");
-
-    if !output.status.success() {
-        stderr!("Error: Couldn't run Git to find the first commit date");
-        exit(1);
-    }
-
-    // ISO-8601: The year is everything before the first dash.
-    let date_string = str::from_utf8(&output.stdout)
-        .expect("git log returned invalid UTF-8")
-        .trim()
-        .split('\n')
-        .last().unwrap();
-
-    // Find the dash
-    let dash_index = date_string.find('-').expect("Didn't find dash in ISO-8601 output");
-    date_string[.. dash_index].parse().expect("Couldn't parse first commit year")
 }
 
 fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
