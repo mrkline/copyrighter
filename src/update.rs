@@ -3,7 +3,7 @@
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
-use std::sync::{Arc, mpsc};
+use std::sync::{mpsc, Arc};
 use std::os::unix::prelude::*;
 use std::ptr;
 
@@ -37,18 +37,17 @@ pub fn update_headers(map: YearMap, organization: String) {
     // once all senders have finished.
     drop(tx);
 
-
     // Slurp our our paths until there aren't any more
     for (path, result) in rx {
         match result {
-            Ok(()) => { /* Everything worked, nothing to do */ },
-            Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", path, e).unwrap()
+            Ok(()) => { /* Everything worked, nothing to do */ }
+            Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", path, e).unwrap(),
         }
     }
 }
 
 /// Update the existing copyright notice of a file, or tack on a new one.
-fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<()> {
+fn update_file(path: &str, years: Vec<Year>, organization: &str) -> io::Result<()> {
     // Open the file with read and write perms.
     let mut fh = OpenOptions::new().read(true).write(true).open(path)?;
 
@@ -62,13 +61,12 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
     // We don't want to mess with the newline (or trailing space).
     let old_first_line = first_line_buff.trim_right();
 
-    lazy_static!{
-        static ref COPYRIGHT_OPENER : Regex = Regex::new(
-            r"^(\s*/[/*]).*[Cc]opyright").unwrap();
+    lazy_static! {
+        static ref COPYRIGHT_OPENER: Regex = Regex::new(r"^(\s*/[/*]).*[Cc]opyright").unwrap();
     }
 
-    let mut new_first_line : String;
-    let replacing_existing_notice : bool;
+    let mut new_first_line: String;
+    let replacing_existing_notice: bool;
 
     match COPYRIGHT_OPENER.captures(old_first_line) {
         // If there's an existing copyright notice, update that.
@@ -96,8 +94,7 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
         new_first_line.push('\n');
         // Slide the existing contents forward, making way for the new notice.
         slide_file_contents(&fh, 0, new_first_line.len() as isize)?;
-    }
-    else {
+    } else {
         // Calculate the difference in length between the old notice and the new
         // one, then slide all contents *after* the old notice that distance.
         let slide_amount = new_first_line.len() as isize - old_first_line.len() as isize;
@@ -117,7 +114,7 @@ fn update_file(path: &str, years : Vec<Year>, organization: &str) -> io::Result<
 ///    then overwriting the existing file with the temp file.
 /// 3. The file fits comfortably in memory space. Besides, if a *code* file
 ///    is more than a few dozen kilobytes, you have other problems.
-fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io::Result<()> {
+fn slide_file_contents(rust_handle: &File, offset: usize, amount: isize) -> io::Result<()> {
     // We simplify casting and math below if we can assume offset can be signed.
     assert!(offset <= isize::max_value() as usize);
 
@@ -133,24 +130,30 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
     // (usize is 32 bits on x86, and files can be much larger than 4GB.)
     // But we're trying to mmap it (so it should fit in our address space),
     // and if a code file is that big...
-    let file_length_64 : u64 = rust_handle.metadata()?.len();
+    let file_length_64: u64 = rust_handle.metadata()?.len();
     if file_length_64 > isize::max_value() as u64 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                  "The file is too large to be mapped."));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "The file is too large to be mapped.",
+        ));
     }
     let file_length = file_length_64 as usize;
 
     let fd = rust_handle.as_raw_fd(); // Get our classic Unix int file handle.
-    // How long will the file be once we're done with it?
+                                      // How long will the file be once we're done with it?
     let new_length = (file_length as isize + amount) as libc::off_t;
 
-    if amount < 0 { // We have to shrink the file.
+    if amount < 0 {
+        // We have to shrink the file.
         // Shift its contents over.
         let mut mapping = Mapping::open(fd, file_length)?;
-        unsafe { // memmove, a la Rust
-            ptr::copy(mapping.ptr().add(offset),
-                      mapping.mut_ptr().offset(offset as isize + amount),
-                      file_length - offset);
+        unsafe {
+            // memmove, a la Rust
+            ptr::copy(
+                mapping.ptr().add(offset),
+                mapping.mut_ptr().offset(offset as isize + amount),
+                file_length - offset,
+            );
         }
         drop(mapping);
 
@@ -158,8 +161,8 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
         unsafe {
             assert_eq!(libc::ftruncate(fd, new_length), 0);
         }
-    }
-    else if amount > 0 { // We have to grow the file.
+    } else if amount > 0 {
+        // We have to grow the file.
         // Use fallocate instead of ftruncate to ensure that we have the room
         // on disk. See the man pages for posix_fallocate and ftruncate.
         unsafe {
@@ -168,13 +171,16 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
 
         // Shift the contents over.
         let mut mapping = Mapping::open(fd, new_length as usize)?;
-        unsafe { // memmove, a la Rust
-            ptr::copy(mapping.ptr().add(offset),
-                      mapping.mut_ptr().offset(offset as isize + amount),
-                      file_length - offset);
+        unsafe {
+            // memmove, a la Rust
+            ptr::copy(
+                mapping.ptr().add(offset),
+                mapping.mut_ptr().offset(offset as isize + amount),
+                file_length - offset,
+            );
         }
-    }
-    else { // wat
+    } else {
+        // wat
         unreachable!("We should account for this case with an early return.");
     }
     Ok(())
@@ -196,17 +202,22 @@ struct Mapping {
 impl Mapping {
     fn open(fd: RawFd, file_length: usize) -> io::Result<Mapping> {
         let mapping = unsafe {
-            libc::mmap(ptr::null_mut(),
-                       file_length,
-                       libc::PROT_READ | libc::PROT_WRITE,
-                       libc::MAP_SHARED,
-                       fd, 0)
+            libc::mmap(
+                ptr::null_mut(),
+                file_length,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED,
+                fd,
+                0,
+            )
         };
         if mapping == libc::MAP_FAILED {
             Err(io::Error::last_os_error())
-        }
-        else {
-            Ok(Mapping{ ptr: mapping, file_length })
+        } else {
+            Ok(Mapping {
+                ptr: mapping,
+                file_length,
+            })
         }
     }
 
@@ -222,8 +233,12 @@ impl Mapping {
 impl Drop for Mapping {
     fn drop(&mut self) {
         unsafe {
-            assert_eq!(libc::munmap(self.ptr, self.file_length), 0,
-                    "munmap failed with {}", io::Error::last_os_error());
+            assert_eq!(
+                libc::munmap(self.ptr, self.file_length),
+                0,
+                "munmap failed with {}",
+                io::Error::last_os_error()
+            );
         }
     }
 }

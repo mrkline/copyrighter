@@ -1,4 +1,3 @@
-
 // Convenience macro to print to stderr
 // See http://stackoverflow.com/a/32707058
 #[macro_export]
@@ -10,4 +9,3 @@ macro_rules! stderr {
         }
     )
 }
-

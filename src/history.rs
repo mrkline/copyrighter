@@ -4,7 +4,7 @@
 extern crate time;
 
 use std::collections::HashSet;
-use std::sync::{Arc, mpsc};
+use std::sync::{mpsc, Arc};
 
 use num_cpus;
 use threadpool::ThreadPool;
@@ -12,8 +12,7 @@ use threadpool::ThreadPool;
 use git::*;
 use common::*;
 
-pub fn get_year_map(paths: &PathSet, ignore_commits: HashSet<SHA1>) -> YearMap
-{
+pub fn get_year_map(paths: &PathSet, ignore_commits: HashSet<SHA1>) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
     // by the I/O of actually reading the files, but we can let the OS'es I/O
     // scheduler figure that out.

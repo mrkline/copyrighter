@@ -73,12 +73,18 @@ fn main() {
     // Args parsing via getopts
     let mut opts = Options::new();
     opts.optflag("h", "help", "Print this help text.");
-    opts.optopt("o", "organization",
-                "The organization claiming the copyright, and any following text",
-                "<org>");
-    opts.optopt("i", "ignore-commits",
-                "Ignore the listed commits when examining history",
-                "<commit1[,commit2,...]>");
+    opts.optopt(
+        "o",
+        "organization",
+        "The organization claiming the copyright, and any following text",
+        "<org>",
+    );
+    opts.optopt(
+        "i",
+        "ignore-commits",
+        "Ignore the listed commits when examining history",
+        "<commit1[,commit2,...]>",
+    );
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -89,13 +95,15 @@ fn main() {
         }
     };
 
-    if matches.opt_present("h") { // Print help as-desired.
+    if matches.opt_present("h") {
+        // Print help as-desired.
         print_usage(&opts, 0);
     }
 
     let organization = match matches.opt_str("o") {
         Some(o) => o,
-        None => { // -o is mandatory.
+        None => {
+            // -o is mandatory.
             stderr!("Required option 'organization' is missing.");
             print_usage(&opts, 1);
         }
@@ -119,14 +127,12 @@ fn main() {
     // Kick off two threads: one gets when files were modified via Git history,
     // and the other searches the files themselves for existing copyright info.
     let pc = paths.clone();
-    let git_years_handle =
-        thread::spawn(move || history::get_year_map(&pc, ignores));
-    let header_years_handle =
-        thread::spawn(|| existing::get_year_map(paths));
+    let git_years_handle = thread::spawn(move || history::get_year_map(&pc, ignores));
+    let header_years_handle = thread::spawn(|| existing::get_year_map(paths));
 
     // Let them finish.
-    let mut header_years : YearMap = header_years_handle.join().unwrap();
-    let git_years : YearMap = git_years_handle.join().unwrap();
+    let mut header_years: YearMap = header_years_handle.join().unwrap();
+    let git_years: YearMap = git_years_handle.join().unwrap();
 
     // Strip header-provided years that overlap with Git history.
     trim_header_years(&mut header_years, first_git_year);
@@ -140,11 +146,15 @@ fn main() {
 fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {
     let ignore_arg = match ignore_arg {
         Some(a) => a,
-        None => return HashSet::new()
+        None => return HashSet::new(),
     };
 
-    ignore_arg.borrow().split(',').filter(|s| !s.is_empty())
-        .map(|c| commit_ish_into_sha(c.trim())).collect()
+    ignore_arg
+        .borrow()
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|c| commit_ish_into_sha(c.trim()))
+        .collect()
 }
 
 fn trim_header_years(header_years: &mut YearMap, first_year: Year) {
@@ -164,8 +174,7 @@ fn combine_year_maps(header_years: YearMap, git_years: YearMap) -> YearMap {
     // Merge the smaller map into the larger to try to avoid a realloc
     let (mut larger, smaller) = if git_years.len() > header_years.len() {
         (git_years, header_years)
-    }
-    else {
+    } else {
         (header_years, git_years)
     };
 

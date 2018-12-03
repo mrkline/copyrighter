@@ -21,7 +21,8 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
 
     let (tx, rx) = mpsc::channel();
 
-    for path in paths { // Consume our paths
+    for path in paths {
+        // Consume our paths
         let tx_clone = tx.clone();
         thread_pool.execute(move || {
             let result = scan_file(&path);
@@ -39,7 +40,7 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
         // scan_file succeeded or we should print the I/O error and move on.
         match result {
             Ok(v) => assert!(ret.insert(path, v).is_none()),
-            Err(e) => stderr!("Error reading {}: {}", path, e)
+            Err(e) => stderr!("Error reading {}: {}", path, e),
         };
     }
 
@@ -55,14 +56,13 @@ fn scan_file(path: &str) -> io::Result<Vec<Year>> {
         br.read_line(&mut first_line)?;
     }
 
-    lazy_static!{
-        static ref COPYRIGHT : Regex = Regex::new(
-            r"^\s*/[/*].*[Cc]opyright").unwrap();
-        static ref YEAR_OR_RANGE : Regex = Regex::new(
-            r"((\d{4})\s*[-–—]\s*(\d{4}))|(\d{4})").unwrap();
+    lazy_static! {
+        static ref COPYRIGHT: Regex = Regex::new(r"^\s*/[/*].*[Cc]opyright").unwrap();
+        static ref YEAR_OR_RANGE: Regex =
+            Regex::new(r"((\d{4})\s*[-–—]\s*(\d{4}))|(\d{4})").unwrap();
     }
 
-    let mut years : Vec<Year> = Vec::new();
+    let mut years: Vec<Year> = Vec::new();
 
     // The first line isn't a copyright line. Move on to the next file.
     if !COPYRIGHT.is_match(&first_line) {
@@ -72,16 +72,18 @@ fn scan_file(path: &str) -> io::Result<Vec<Year>> {
     for cap in YEAR_OR_RANGE.captures_iter(&first_line) {
         match cap.get(1) {
             // A single year:
-            None => { years.push(cap.get(4).unwrap().as_str().parse().unwrap()); },
+            None => {
+                years.push(cap.get(4).unwrap().as_str().parse().unwrap());
+            }
             // A range of years (<yyyy>-<yyyy>):
             Some(_) => {
-                let start : Year = cap.get(2).unwrap().as_str().parse().unwrap();
-                let end : Year = cap.get(3).unwrap().as_str().parse().unwrap();
+                let start: Year = cap.get(2).unwrap().as_str().parse().unwrap();
+                let end: Year = cap.get(3).unwrap().as_str().parse().unwrap();
 
-                for i in start ..=end {
+                for i in start..=end {
                     years.push(i);
                 }
-            },
+            }
         };
     }
 

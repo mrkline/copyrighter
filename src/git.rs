@@ -3,19 +3,19 @@ use std::env;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io::prelude::*;
-use std::process::{Command, Stdio, exit};
+use std::process::{exit, Command, Stdio};
 use std::str;
 
 /// A 20-byte SHA1 hash, used for identifying objects in Git.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SHA1 {
-    bytes: [u8; 20]
+    bytes: [u8; 20],
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum SHA1ParseError {
     IncorrectLength,
-    InvalidHexadecimal
+    InvalidHexadecimal,
 }
 
 impl Error for SHA1ParseError {
@@ -36,16 +36,20 @@ impl Display for SHA1ParseError {
 impl SHA1 {
     /// Parses a SHA1 from a 40 character hex string
     pub fn parse(s: &str) -> Result<SHA1, SHA1ParseError> {
-        if s.len() != 40 { return Err(SHA1ParseError::IncorrectLength) }
+        if s.len() != 40 {
+            return Err(SHA1ParseError::IncorrectLength);
+        }
 
         let mut ret = SHA1::default();
 
         for i in 0..20 {
             let char_index = i * 2;
-            ret.bytes[i] = match u8::from_str_radix(&s[char_index .. char_index + 2], 16) {
-                    Ok(b) => b,
-                    _ => { return Err(SHA1ParseError::InvalidHexadecimal); },
-                };
+            ret.bytes[i] = match u8::from_str_radix(&s[char_index..char_index + 2], 16) {
+                Ok(b) => b,
+                _ => {
+                    return Err(SHA1ParseError::InvalidHexadecimal);
+                }
+            };
         }
 
         Ok(ret)
@@ -56,8 +60,10 @@ impl Display for SHA1 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         for b in &self.bytes {
             match write!(f, "{:02x}", b) {
-                Ok (()) => { },
-                err => { return err; }
+                Ok(()) => {}
+                err => {
+                    return err;
+                }
             };
         }
         Ok(())
@@ -65,7 +71,9 @@ impl Display for SHA1 {
 }
 
 impl Default for SHA1 {
-    fn default() -> SHA1 { SHA1{bytes: [0; 20]} }
+    fn default() -> SHA1 {
+        SHA1 { bytes: [0; 20] }
+    }
 }
 
 use common::Year;
@@ -76,24 +84,26 @@ pub fn assert_at_repo_top() {
         .arg("--show-toplevel")
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output().expect("Couldn't run `git rev-parse` to find top-level dir");
+        .output()
+        .expect("Couldn't run `git rev-parse` to find top-level dir");
 
     if !output.status.success() {
         stderr!("Error: not in a Git directory");
         exit(1);
     }
 
-    let tld = String::from_utf8(output.stdout)
-        .expect("git rev-parse returned invalid UTF-8");
+    let tld = String::from_utf8(output.stdout).expect("git rev-parse returned invalid UTF-8");
 
     let trimmed_tld = tld.trim();
 
     let cwd = env::current_dir().expect("Couldn't get current directory");
 
     if trimmed_tld != cwd.to_str().expect("Current directory is not valid UTF-8") {
-        stderr!("{}\n{}",
-                "Error: not at the top of a Git directory",
-                "(This makes reasoning about paths much simpler.)");
+        stderr!(
+            "{}\n{}",
+            "Error: not at the top of a Git directory",
+            "(This makes reasoning about paths much simpler.)"
+        );
         exit(1);
     }
 }
@@ -105,7 +115,8 @@ pub fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
         .arg(commit_ish)
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output().expect("Couldn't spawn `git rev-parse` to parse ignored commit");
+        .output()
+        .expect("Couldn't spawn `git rev-parse` to parse ignored commit");
 
     if !output.status.success() {
         stderr!("Error: git rev-parse failed to parse {:?}", commit_ish);
@@ -121,7 +132,9 @@ pub fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
 
 fn year_from_iso_8601(iso: &str) -> Year {
     let dash_index = iso.find('-').expect("Didn't find dash in ISO-8601 output");
-    iso[.. dash_index].parse().expect("Couldn't parse first commit year")
+    iso[..dash_index]
+        .parse()
+        .expect("Couldn't parse first commit year")
 }
 
 pub fn get_first_commit_year() -> Year {
@@ -131,7 +144,8 @@ pub fn get_first_commit_year() -> Year {
         .arg("--format=%aI")
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output().expect("Couldn't spawn `git log` to get first commit timestamp");
+        .output()
+        .expect("Couldn't spawn `git log` to get first commit timestamp");
 
     if !output.status.success() {
         stderr!("Error: Couldn't run Git to find the first commit date");
@@ -143,7 +157,8 @@ pub fn get_first_commit_year() -> Year {
         .expect("git log returned invalid UTF-8")
         .trim()
         .split('\n')
-        .last().unwrap();
+        .last()
+        .unwrap();
 
     // Find the dash
     year_from_iso_8601(date_string)
@@ -164,7 +179,8 @@ pub fn get_file_years(path: &str, ignoring_commits: &HashSet<SHA1>) -> Vec<Year>
         .arg(path)
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output().expect("Couldn't spawn `git log` to get commit timestamps");
+        .output()
+        .expect("Couldn't spawn `git log` to get commit timestamps");
 
     if !output.status.success() {
         stderr!("Error: Couldn't run Git to find commit timestamps");
@@ -184,7 +200,9 @@ pub fn get_file_years(path: &str, ignoring_commits: &HashSet<SHA1>) -> Vec<Year>
         let sha = space_split.next().expect("Unexpected `git log` output");
         let date = space_split.next().expect("Unexpected `git log` output");
 
-        if should_ignore_commit(sha, ignoring_commits) { continue; }
+        if should_ignore_commit(sha, ignoring_commits) {
+            continue;
+        }
 
         ret.push(year_from_iso_8601(date));
     }
