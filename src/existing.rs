@@ -78,7 +78,7 @@ fn scan_file(path: &str) -> io::Result<Vec<Year>> {
                 let start : Year = cap.get(2).unwrap().as_str().parse().unwrap();
                 let end : Year = cap.get(3).unwrap().as_str().parse().unwrap();
 
-                for i in start .. end+1 {
+                for i in start ..=end {
                     years.push(i);
                 }
             },

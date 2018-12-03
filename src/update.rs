@@ -148,7 +148,7 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
         // Shift its contents over.
         let mut mapping = Mapping::open(fd, file_length)?;
         unsafe { // memmove, a la Rust
-            ptr::copy(mapping.ptr().offset(offset as isize),
+            ptr::copy(mapping.ptr().add(offset),
                       mapping.mut_ptr().offset(offset as isize + amount),
                       file_length - offset);
         }
@@ -169,7 +169,7 @@ fn slide_file_contents(rust_handle : &File, offset: usize, amount : isize) -> io
         // Shift the contents over.
         let mut mapping = Mapping::open(fd, new_length as usize)?;
         unsafe { // memmove, a la Rust
-            ptr::copy(mapping.ptr().offset(offset as isize),
+            ptr::copy(mapping.ptr().add(offset),
                       mapping.mut_ptr().offset(offset as isize + amount),
                       file_length - offset);
         }
@@ -206,7 +206,7 @@ impl Mapping {
             Err(io::Error::last_os_error())
         }
         else {
-            Ok(Mapping{ ptr: mapping, file_length: file_length })
+            Ok(Mapping{ ptr: mapping, file_length })
         }
     }
 
