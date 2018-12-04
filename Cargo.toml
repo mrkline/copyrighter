@@ -2,13 +2,14 @@
 name = "copyrighter"
 version = "0.1.0"
 authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
+edition = "2018"
 
 [dependencies]
 getopts = "0.2" # Args parsing
 time = "0.1" # Fiddling with Git commit times
-threadpool = "1.3" # Use thread pools to parallelize our work.
-num_cpus = "1.0" # How big should we make the thread pool?
-regex = "0.2"
-lazy_static = "0.2" # Lazy static init (of regexes, mostly)
-libc = "0.2" # For mmap
+threadpool = "1" # Use thread pools to parallelize our work.
+num_cpus = "1" # How big should we make the thread pool?
+regex = "1"
+lazy_static = "1" # Lazy static init (of regexes, mostly)
+libc ="0.2" # Various *nix calls for file manipulation
 itertools = "0.5" # Additional iterator operations (e.g. join)

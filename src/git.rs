@@ -2,9 +2,10 @@ use std::collections::HashSet;
 use std::env;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::io::prelude::*;
 use std::process::{exit, Command, Stdio};
 use std::str;
+
+use crate::common::Year;
 
 /// A 20-byte SHA1 hash, used for identifying objects in Git.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -76,8 +77,6 @@ impl Default for SHA1 {
     }
 }
 
-use common::Year;
-
 pub fn assert_at_repo_top() {
     let output = Command::new("git")
         .arg("rev-parse")
@@ -88,7 +87,7 @@ pub fn assert_at_repo_top() {
         .expect("Couldn't run `git rev-parse` to find top-level dir");
 
     if !output.status.success() {
-        stderr!("Error: not in a Git directory");
+        eprintln!("Error: not in a Git directory");
         exit(1);
     }
 
@@ -99,7 +98,7 @@ pub fn assert_at_repo_top() {
     let cwd = env::current_dir().expect("Couldn't get current directory");
 
     if trimmed_tld != cwd.to_str().expect("Current directory is not valid UTF-8") {
-        stderr!(
+        eprintln!(
             "{}\n{}",
             "Error: not at the top of a Git directory",
             "(This makes reasoning about paths much simpler.)"
@@ -119,7 +118,7 @@ pub fn commit_ish_into_sha(commit_ish: &str) -> SHA1 {
         .expect("Couldn't spawn `git rev-parse` to parse ignored commit");
 
     if !output.status.success() {
-        stderr!("Error: git rev-parse failed to parse {:?}", commit_ish);
+        eprintln!("Error: git rev-parse failed to parse {:?}", commit_ish);
         exit(1);
     }
 
@@ -148,7 +147,7 @@ pub fn get_first_commit_year() -> Year {
         .expect("Couldn't spawn `git log` to get first commit timestamp");
 
     if !output.status.success() {
-        stderr!("Error: Couldn't run Git to find the first commit date");
+        eprintln!("Error: Couldn't run Git to find the first commit date");
         exit(1);
     }
 
@@ -183,7 +182,7 @@ pub fn get_file_years(path: &str, ignoring_commits: &HashSet<SHA1>) -> Vec<Year>
         .expect("Couldn't spawn `git log` to get commit timestamps");
 
     if !output.status.success() {
-        stderr!("Error: Couldn't run Git to find commit timestamps");
+        eprintln!("Error: Couldn't run Git to find commit timestamps");
         exit(1);
     }
 

@@ -9,8 +9,8 @@ use std::sync::{mpsc, Arc};
 use num_cpus;
 use threadpool::ThreadPool;
 
-use git::*;
-use common::*;
+use crate::git::*;
+use crate::common::*;
 
 pub fn get_year_map(paths: &PathSet, ignore_commits: HashSet<SHA1>) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked

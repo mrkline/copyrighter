@@ -29,19 +29,6 @@
 //!     -exec copyrighter --organization "Fluke Corporation. All rights reserved." {} +
 //! ```
 
-extern crate getopts;
-extern crate itertools;
-extern crate libc;
-extern crate num_cpus;
-extern crate regex;
-extern crate threadpool;
-
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-mod stderr;
-
 mod common;
 mod existing;
 mod git;
@@ -51,14 +38,13 @@ mod update;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::env;
-use std::io::prelude::*;
 use std::process::exit;
 use std::thread;
 
 use getopts::Options;
 
-use common::*;
-use git::*;
+use crate::common::*;
+use crate::git::*;
 
 // Print our usage string and exit the program with the given code.
 // (This never returns.)
@@ -90,7 +76,7 @@ fn main() {
         Ok(m) => m,
         Err(e) => {
             // If the user messes up the args, print the error and usage string.
-            stderr!("{}", e.to_string());
+            eprintln!("{}", e.to_string());
             print_usage(&opts, 1);
         }
     };
@@ -104,7 +90,7 @@ fn main() {
         Some(o) => o,
         None => {
             // -o is mandatory.
-            stderr!("Required option 'organization' is missing.");
+            eprintln!("Required option 'organization' is missing.");
             print_usage(&opts, 1);
         }
     };

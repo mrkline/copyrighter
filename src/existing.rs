@@ -8,10 +8,11 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 
 use num_cpus;
+use lazy_static::lazy_static;
 use threadpool::ThreadPool;
 use regex::Regex;
 
-use common::*;
+use crate::common::*;
 
 pub fn get_year_map(paths: PathSet) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
@@ -40,7 +41,7 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
         // scan_file succeeded or we should print the I/O error and move on.
         match result {
             Ok(v) => assert!(ret.insert(path, v).is_none()),
-            Err(e) => stderr!("Error reading {}: {}", path, e),
+            Err(e) => eprintln!("Error reading {}: {}", path, e),
         };
     }
 
