@@ -3,52 +3,32 @@
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
-use std::sync::{mpsc, Arc};
 use std::os::unix::prelude::*;
 use std::ptr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use libc;
-use num_cpus;
+use rayon::prelude::*;
 use regex::Regex;
-use threadpool::ThreadPool;
 
 use crate::common::{Year, YearMap};
 
-pub fn update_headers(map: YearMap, organization: String) {
+pub fn update_headers(map: &YearMap, organization: &str) {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
     // by the I/O of actually reading the files, but we can let the OS'es I/O
     // scheduler figure that out.
-    let thread_pool = ThreadPool::new(num_cpus::get());
-
-    let (tx, rx) = mpsc::channel();
-
-    let organization = Arc::new(organization);
-
-    for (k, v) in map {
-        let tx_clone = tx.clone();
-        let org_clone = organization.clone();
-        thread_pool.execute(move || {
-            let result = update_file(&k, v, &org_clone);
-            tx_clone.send((k, result)).unwrap();
-        });
-    }
-    // Dropping the original tx here means rx.recv() will fail
-    // once all senders have finished.
-    drop(tx);
-
-    // Slurp our our paths until there aren't any more
-    for (path, result) in rx {
+    map.par_iter().for_each(|(k, v)| {
+        let result = update_file(&k, v, &organization);
         match result {
             Ok(()) => { /* Everything worked, nothing to do */ }
-            Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", path, e).unwrap(),
+            Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", k, e).unwrap(),
         }
-    }
+    });
 }
 
 /// Update the existing copyright notice of a file, or tack on a new one.
-fn update_file(path: &str, years: Vec<Year>, organization: &str) -> io::Result<()> {
+fn update_file(path: &str, years: &[Year], organization: &str) -> io::Result<()> {
     // Open the file with read and write perms.
     let mut fh = OpenOptions::new().read(true).write(true).open(path)?;
 

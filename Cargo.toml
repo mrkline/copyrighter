@@ -7,8 +7,8 @@ edition = "2018"
 [dependencies]
 getopts = "0.2" # Args parsing
 time = "0.1" # Fiddling with Git commit times
-threadpool = "1" # Use thread pools to parallelize our work.
-num_cpus = "1" # How big should we make the thread pool?
+rayon = "1"
+rayon-hash = "0.4"
 regex = "1"
 lazy_static = "1" # Lazy static init (of regexes, mostly)
 libc ="0.2" # Various *nix calls for file manipulation

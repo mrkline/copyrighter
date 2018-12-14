@@ -113,7 +113,7 @@ fn main() {
     // Kick off two threads: one gets when files were modified via Git history,
     // and the other searches the files themselves for existing copyright info.
     let pc = paths.clone();
-    let git_years_handle = thread::spawn(move || history::get_year_map(&pc, ignores));
+    let git_years_handle = thread::spawn(move || history::get_year_map(pc, &ignores));
     let header_years_handle = thread::spawn(|| existing::get_year_map(paths));
 
     // Let them finish.
@@ -126,7 +126,7 @@ fn main() {
     let all_years = combine_year_maps(header_years, git_years);
 
     // Take all the info we've learned, and update (or create) copyright headers.
-    update::update_headers(all_years, organization);
+    update::update_headers(&all_years, &organization);
 }
 
 fn get_commits_to_ignore<S: Borrow<str>>(ignore_arg: Option<S>) -> HashSet<SHA1> {

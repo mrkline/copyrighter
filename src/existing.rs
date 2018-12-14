@@ -5,11 +5,9 @@
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::io::prelude::*;
-use std::sync::mpsc;
 
-use num_cpus;
 use lazy_static::lazy_static;
-use threadpool::ThreadPool;
+use rayon::prelude::*;
 use regex::Regex;
 
 use crate::common::*;
@@ -18,34 +16,16 @@ pub fn get_year_map(paths: PathSet) -> YearMap {
     // Let's paralellize! I'm assuming this process will be largely bottlenecked
     // by the I/O of actually reading the files, but we can let the OS'es I/O
     // scheduler figure that out.
-    let thread_pool = ThreadPool::new(num_cpus::get());
-
-    let (tx, rx) = mpsc::channel();
-
-    for path in paths {
-        // Consume our paths
-        let tx_clone = tx.clone();
-        thread_pool.execute(move || {
-            let result = scan_file(&path);
-            tx_clone.send((path, result)).unwrap()
-        });
-    }
-    // Dropping the original tx here means rx.recv() will fail
-    // once all senders have finished.
-    drop(tx);
-
-    let mut ret = YearMap::new();
-
-    // Slurp our our paths until there aren't any more
-    for (path, result) in rx {
-        // scan_file succeeded or we should print the I/O error and move on.
-        match result {
-            Ok(v) => assert!(ret.insert(path, v).is_none()),
-            Err(e) => eprintln!("Error reading {}: {}", path, e),
-        };
-    }
-
-    ret
+    paths
+        .into_par_iter()
+        .filter_map(|path| match scan_file(&path) {
+            Ok(v) => Some((path, v)),
+            Err(e) => {
+                eprintln!("Error reading {}: {}", path, e);
+                None
+            }
+        })
+        .collect()
 }
 
 fn scan_file(path: &str) -> io::Result<Vec<Year>> {

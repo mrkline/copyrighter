@@ -1,6 +1,6 @@
 ///! Common types and functions used by the rest of the binary.
 
-use std::collections::{HashMap, HashSet};
+use rayon_hash::{HashMap, HashSet};
 
 pub type Year = u16;
 
