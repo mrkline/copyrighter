@@ -6,10 +6,10 @@ edition = "2018"
 
 [dependencies]
 getopts = "0.2" # Args parsing
-time = "0.1" # Fiddling with Git commit times
-rayon = "1"
+itertools = "0.5" # Additional iterator operations (e.g. join)
+lazy_static = "1" # Lazy static init (of regexes, mostly)
+memmap = "0.7" # We move file contents around by memory mapping them
+rayon = "1" # Parallelism!
 rayon-hash = "0.4"
 regex = "1"
-lazy_static = "1" # Lazy static init (of regexes, mostly)
-libc ="0.2" # Various *nix calls for file manipulation
-itertools = "0.5" # Additional iterator operations (e.g. join)
+time = "0.1" # Fiddling with Git commit times

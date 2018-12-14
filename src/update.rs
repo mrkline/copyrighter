@@ -3,12 +3,11 @@
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
-use std::os::unix::prelude::*;
 use std::ptr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use libc;
+use memmap::MmapMut;
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -89,13 +88,12 @@ fn update_file(path: &str, years: &[Year], organization: &str) -> io::Result<()>
 }
 
 /// We slide file contents around using mmap and memmove, assuming
-/// 1. We're on a Unix.
-/// 2. This is simpler and faster than creating a temp file,
+/// 1. This is simpler and faster than creating a temp file,
 ///    writing our copyright header, writing the remaining file contents,
 ///    then overwriting the existing file with the temp file.
-/// 3. The file fits comfortably in memory space. Besides, if a *code* file
+/// 2. The file fits comfortably in memory space. Besides, if a *code* file
 ///    is more than a few dozen kilobytes, you have other problems.
-fn slide_file_contents(rust_handle: &File, offset: usize, amount: isize) -> io::Result<()> {
+fn slide_file_contents(fd: &File, offset: usize, amount: isize) -> io::Result<()> {
     // We simplify casting and math below if we can assume offset can be signed.
     assert!(offset <= isize::max_value() as usize);
 
@@ -107,11 +105,11 @@ fn slide_file_contents(rust_handle: &File, offset: usize, amount: isize) -> io::
         return Ok(());
     }
 
-    // Generally, casting a file length to a isize would be a terrible idea.
+    // Generally, casting a file length to a isize would be a bad idea.
     // (usize is 32 bits on x86, and files can be much larger than 4GB.)
     // But we're trying to mmap it (so it should fit in our address space),
     // and if a code file is that big...
-    let file_length_64: u64 = rust_handle.metadata()?.len();
+    let file_length_64 : u64 = fd.metadata()?.len();
     if file_length_64 > isize::max_value() as u64 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -119,44 +117,37 @@ fn slide_file_contents(rust_handle: &File, offset: usize, amount: isize) -> io::
         ));
     }
     let file_length = file_length_64 as usize;
+    assert!(file_length > offset); // Return error instead of asserting?
 
-    let fd = rust_handle.as_raw_fd(); // Get our classic Unix int file handle.
-                                      // How long will the file be once we're done with it?
-    let new_length = (file_length as isize + amount) as libc::off_t;
+    let new_length = (file_length as isize + amount) as u64;
 
     if amount < 0 {
         // We have to shrink the file.
         // Shift its contents over.
-        let mut mapping = Mapping::open(fd, file_length)?;
         unsafe {
+            let mut mapping = MmapMut::map_mut(&fd)?;
             // memmove, a la Rust
             ptr::copy(
-                mapping.ptr().add(offset),
-                mapping.mut_ptr().offset(offset as isize + amount),
+                mapping.as_ptr().add(offset),
+                mapping.as_mut_ptr().add(offset).offset(amount),
                 file_length - offset,
             );
         }
-        drop(mapping);
 
         // Then shrink it.
-        unsafe {
-            assert_eq!(libc::ftruncate(fd, new_length), 0);
-        }
+        fd.set_len(new_length)?;
+
     } else if amount > 0 {
         // We have to grow the file.
-        // Use fallocate instead of ftruncate to ensure that we have the room
-        // on disk. See the man pages for posix_fallocate and ftruncate.
-        unsafe {
-            assert_eq!(libc::posix_fallocate(fd, 0, new_length), 0);
-        }
+        fd.set_len(new_length)?;
 
         // Shift the contents over.
-        let mut mapping = Mapping::open(fd, new_length as usize)?;
         unsafe {
+            let mut mapping = MmapMut::map_mut(fd)?;
             // memmove, a la Rust
             ptr::copy(
-                mapping.ptr().add(offset),
-                mapping.mut_ptr().offset(offset as isize + amount),
+                mapping.as_ptr().add(offset),
+                mapping.as_mut_ptr().add(offset).offset(amount),
                 file_length - offset,
             );
         }
@@ -165,61 +156,4 @@ fn slide_file_contents(rust_handle: &File, offset: usize, amount: isize) -> io::
         unreachable!("We should account for this case with an early return.");
     }
     Ok(())
-}
-
-// A whole crate exists for cross-platform memory mapping
-// (https://github.com/danburkert/memmap-rs),
-// but for now I only care about the Posix case with no offset,
-// which is easy to do. No need to pull in another dependency.
-
-/// A RAII type for mmap
-struct Mapping {
-    // mmap gives a pointer.
-    ptr: *mut libc::c_void,
-    // munmap wants the size we asked for with mmap.
-    file_length: libc::size_t,
-}
-
-impl Mapping {
-    fn open(fd: RawFd, file_length: usize) -> io::Result<Mapping> {
-        let mapping = unsafe {
-            libc::mmap(
-                ptr::null_mut(),
-                file_length,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_SHARED,
-                fd,
-                0,
-            )
-        };
-        if mapping == libc::MAP_FAILED {
-            Err(io::Error::last_os_error())
-        } else {
-            Ok(Mapping {
-                ptr: mapping,
-                file_length,
-            })
-        }
-    }
-
-    fn ptr(&self) -> *const u8 {
-        self.ptr as *const u8
-    }
-
-    fn mut_ptr(&mut self) -> *mut u8 {
-        self.ptr as *mut u8
-    }
-}
-
-impl Drop for Mapping {
-    fn drop(&mut self) {
-        unsafe {
-            assert_eq!(
-                libc::munmap(self.ptr, self.file_length),
-                0,
-                "munmap failed with {}",
-                io::Error::last_os_error()
-            );
-        }
-    }
 }
