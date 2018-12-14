@@ -22,7 +22,7 @@ pub fn update_headers(map: &YearMap, organization: &str) {
         let result = update_file(&k, v, &organization);
         match result {
             Ok(()) => { /* Everything worked, nothing to do */ }
-            Err(e) => writeln!(&mut io::stderr(), "Error updating {}: {}", k, e).unwrap(),
+            Err(e) => eprintln!("Error updating {}: {}", k, e),
         }
     });
 }
